@@ -272,10 +272,12 @@ export function DocumentDetailClient({ envelope }: { envelope: any }) {
           <div className="bg-white rounded-xl border border-slate-200/80 p-5 shadow-2xs space-y-2">
             <h3 className="text-xs font-bold text-slate-900 mb-2">Actions</h3>
 
-            {isCompleted && (
-              <Button className="w-full h-8 text-xs font-semibold bg-[#1A56DB] hover:bg-blue-700 text-white">
-                <Download className="h-3.5 w-3.5 mr-1.5" /> Download Signed PDF
-              </Button>
+            {isCompleted && firstDocument && (
+              <a href={`/api/documents/${firstDocument.id}/completed`} download>
+                <Button className="w-full h-8 text-xs font-semibold bg-[#1A56DB] hover:bg-blue-700 text-white">
+                  <Download className="h-3.5 w-3.5 mr-1.5" /> Download Signed PDF
+                </Button>
+              </a>
             )}
 
             {isSent && (

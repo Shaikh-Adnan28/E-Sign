@@ -1,5 +1,9 @@
-import crypto from 'crypto';
+import crypto from "crypto";
 
-export function generateToken(): string {
-  return crypto.randomBytes(32).toString('hex');
+export function generateSigningToken(): string {
+  return crypto.randomBytes(32).toString("hex");
 }
+
+/** @deprecated use generateSigningToken */
+export const generateToken = generateSigningToken;
+
