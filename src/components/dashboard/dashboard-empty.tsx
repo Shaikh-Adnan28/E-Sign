@@ -57,10 +57,11 @@ export function DashboardEmptyState() {
             <Button
               asChild
               size="lg"
-              className="bg-white text-[#1A56DB] hover:bg-blue-50 font-semibold shadow-md text-sm h-11 px-6 transition-all"
+              className="bg-white text-[#1A56DB] hover:bg-blue-50 font-semibold shadow-md text-sm h-11 px-6 rounded-xl transition-all"
             >
-              <Link href="/dashboard/send">
-                <Plus className="h-4 w-4 mr-2 text-[#1A56DB]" /> Send your first document
+              <Link href="/dashboard/send" className="inline-flex items-center justify-center gap-2 whitespace-nowrap">
+                <Plus className="h-4 w-4 shrink-0 text-[#1A56DB]" />
+                <span>Send your first document</span>
               </Link>
             </Button>
             <Button

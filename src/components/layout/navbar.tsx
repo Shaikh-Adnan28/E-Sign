@@ -1,10 +1,7 @@
-"use client"
-
+import { auth } from "@/lib/auth"
 import Link from "next/link"
-import { signOut } from "next-auth/react"
-import { Search, Bell, Plus, HelpCircle, User as UserIcon, Settings, LogOut } from "lucide-react"
+import { Bell, Search, Plus, User, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Breadcrumbs } from "./breadcrumbs"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,108 +10,101 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { getInitials } from "@/lib/utils"
+import { Input } from "@/components/ui/input"
+import { Breadcrumbs } from "@/components/layout/breadcrumbs"
 
-export interface NavbarProps {
-  title?: string
-  user?: {
-    id?: string
-    name?: string | null
-    email?: string | null
-    image?: string | null
-  }
-}
-
-export function Navbar({ user }: NavbarProps) {
-  const userName = user?.name || "User"
-  const userEmail = user?.email || "user@esign.com"
-  const userInitials = getInitials(userName)
+export async function Navbar() {
+  const session = await auth()
+  const userName = session?.user?.name || session?.user?.email?.split("@")[0] || "User"
+  const userInitials = userName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .substring(0, 2)
+    .toUpperCase()
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-slate-200/80 bg-white/95 backdrop-blur-md px-4 sm:px-6">
-      {/* Left: Breadcrumb */}
-      <div className="flex items-center gap-4">
+    <header className="h-16 border-b border-slate-200/80 bg-white/80 backdrop-blur-md sticky top-0 z-30 flex items-center justify-between px-4 sm:px-6 gap-4">
+      {/* Left: Breadcrumbs */}
+      <div className="flex items-center min-w-0">
         <Breadcrumbs />
       </div>
 
-      {/* Center: Command-style Search Bar */}
-      <div className="hidden md:flex flex-1 max-w-sm mx-6">
-        <div className="relative w-full flex items-center">
-          <Search className="absolute left-3 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-          <input
-            type="text"
+      {/* Middle: Search input (hidden on small screens) */}
+      <div className="hidden md:flex items-center flex-1 max-w-xs mx-4">
+        <div className="relative w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+          <Input
+            type="search"
             placeholder="Search documents..."
-            className="w-full h-8 pl-9 pr-12 text-xs bg-slate-100/80 border border-slate-200/80 rounded-md text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1A56DB]/20 focus:border-[#1A56DB] focus:bg-white transition-all"
+            className="pl-9 pr-8 h-9 text-xs bg-slate-50/70 border-slate-200/80 focus:bg-white focus:border-[#1A56DB] transition-all rounded-lg"
           />
-          <div className="absolute right-2.5 flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-slate-200 bg-white text-[10px] font-semibold text-slate-400 shadow-2xs">
-            <span>⌘</span>
-            <span>K</span>
-          </div>
+          <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none hidden sm:inline-flex h-4 select-none items-center gap-0.5 rounded border border-slate-200 bg-slate-100 px-1.5 font-mono text-[10px] font-medium text-slate-500">
+            ⌘K
+          </kbd>
         </div>
       </div>
 
-      {/* Right: Notification, Help & CTA */}
-      <div className="flex items-center gap-2.5">
+      {/* Right: Actions (Notifications, Profile, Primary CTA) */}
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         {/* Help Icon */}
         <Button
           variant="ghost"
           size="icon"
-          className="hidden sm:flex h-8 w-8 text-slate-500 hover:text-slate-700 hover:bg-slate-100/80"
-          title="Help & Documentation"
+          className="h-8.5 w-8.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-full"
+          title="Help & Support"
         >
-          <HelpCircle className="h-4 w-4" />
+          <span className="text-xs font-semibold">?</span>
         </Button>
 
-        {/* Notification bell */}
+        {/* Notifications */}
         <Button
           variant="ghost"
           size="icon"
-          className="relative h-8 w-8 text-slate-500 hover:text-slate-700 hover:bg-slate-100/80"
+          className="h-8.5 w-8.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-full relative"
           title="Notifications"
         >
           <Bell className="h-4 w-4" />
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-[#1A56DB] ring-2 ring-white" />
+          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-blue-600 ring-2 ring-white" />
         </Button>
 
-        <div className="h-4 w-px bg-slate-200 mx-1 hidden sm:block" />
+        <div className="h-4 w-px bg-slate-200 my-auto" />
 
-        {/* User Dropdown */}
+        {/* Profile Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="h-8 w-8 rounded-full p-0 bg-[#1A56DB]/10 text-[#1A56DB] hover:bg-[#1A56DB]/20 border border-blue-200/60"
+              className="h-8.5 w-8.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-xs p-0 border border-blue-200/60"
             >
-              <span className="text-xs font-bold">{userInitials}</span>
+              {userInitials}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuContent align="end" className="w-56 mt-1">
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-xs font-semibold leading-none text-slate-900">{userName}</p>
-                <p className="text-[11px] leading-none text-slate-500 truncate">{userEmail}</p>
+                <p className="text-xs font-bold leading-none text-slate-900">{userName}</p>
+                <p className="text-[11px] leading-none text-slate-500 truncate">
+                  {session?.user?.email}
+                </p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href="/dashboard/settings" className="cursor-pointer text-xs">
-                <UserIcon className="mr-2 h-3.5 w-3.5" />
-                <span>Profile</span>
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/dashboard/settings" className="cursor-pointer text-xs">
-                <Settings className="mr-2 h-3.5 w-3.5" />
-                <span>Settings</span>
+              <Link href="/dashboard/settings" className="cursor-pointer">
+                <User className="mr-2 h-3.5 w-3.5" />
+                <span>Account settings</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              className="text-red-600 focus:text-red-600 cursor-pointer text-xs"
-              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer"
+              asChild
             >
-              <LogOut className="mr-2 h-3.5 w-3.5" />
-              <span>Sign out</span>
+              <Link href="/api/auth/signout">
+                <LogOut className="mr-2 h-3.5 w-3.5" />
+                <span>Sign out</span>
+              </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -123,10 +113,10 @@ export function Navbar({ user }: NavbarProps) {
         <Button
           asChild
           size="sm"
-          className="h-8 bg-[#1A56DB] hover:bg-[#1A56DB]/90 text-white font-medium text-xs shadow-sm shadow-blue-500/20 px-3 transition-all"
+          className="h-8.5 px-3.5 bg-[#1A56DB] hover:bg-blue-700 text-white font-semibold text-xs rounded-xl shadow-xs shadow-blue-500/20 whitespace-nowrap shrink-0 transition-all"
         >
-          <Link href="/dashboard/send">
-            <Plus className="h-3.5 w-3.5 mr-1.5" />
+          <Link href="/dashboard/send" className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
+            <Plus className="h-3.5 w-3.5 shrink-0" />
             <span>Send document</span>
           </Link>
         </Button>

@@ -229,11 +229,11 @@ export default async function DashboardPage() {
 
         <Button
           asChild
-          className="bg-[#1A56DB] hover:bg-blue-700 text-white font-medium text-xs h-9 px-4 shadow-sm shadow-blue-500/20 shrink-0"
+          className="bg-[#1A56DB] hover:bg-blue-700 text-white font-semibold text-xs h-9 px-4 shadow-sm shadow-blue-500/20 shrink-0 rounded-xl"
         >
-          <Link href="/dashboard/send">
-            <Plus className="h-3.5 w-3.5 mr-1.5" />
-            Send document
+          <Link href="/dashboard/send" className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
+            <Plus className="h-3.5 w-3.5 shrink-0" />
+            <span>Send document</span>
           </Link>
         </Button>
       </div>
