@@ -21,7 +21,8 @@ export type {
   Document, NewDocument,
   Signer, NewSigner,
   SignatureField, NewSignatureField,
-  AuditEvent, NewAuditEvent
+  AuditEvent, NewAuditEvent,
+  Contact, NewContact,
 } from "./schema";
 
 // Helper function to close the database connection

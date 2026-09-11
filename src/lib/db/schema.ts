@@ -207,6 +207,41 @@ export const auditEventsRelations = relations(auditEvents, ({ one }) => ({
   }),
 }));
 
+// Contacts table
+export const contacts = pgTable("contacts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ownerId: uuid("owner_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  company: text("company"),
+  phone: text("phone"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  ownerIdx: index("contacts_owner_idx").on(table.ownerId),
+  ownerEmailIdx: uniqueIndex("contacts_owner_email_idx").on(table.ownerId, table.email),
+}));
+
+export type Contact = typeof contacts.$inferSelect;
+export type NewContact = typeof contacts.$inferInsert;
+
+// Contacts relations
+export const contactsRelations = relations(contacts, ({ one }) => ({
+  owner: one(users, {
+    fields: [contacts.ownerId],
+    references: [users.id],
+  }),
+}));
+
+// Update users relations to include contacts
+export const usersRelationsWithContacts = relations(users, ({ many }) => ({
+  envelopes: many(envelopes),
+  contacts: many(contacts),
+}));
+
 // Export all schemas
 export const schemas = {
   users,
@@ -216,4 +251,5 @@ export const schemas = {
   signers,
   signatureFields,
   auditEvents,
+  contacts,
 };
