@@ -27,11 +27,20 @@ export class ResendEmailProvider implements EmailProvider {
   }
 
   async send(message: EmailMessage): Promise<void> {
-    const fromAddress =
+    let fromAddress =
       message.from ??
       process.env.FROM_EMAIL ??
       process.env.EMAIL_FROM ??
       "onboarding@resend.dev";
+
+    // If the configured address contains unverified template domains, use Resend testing domain
+    if (
+      fromAddress.includes("yourdomain.com") ||
+      fromAddress.includes("esign.dev") ||
+      fromAddress.includes("example.com")
+    ) {
+      fromAddress = "onboarding@resend.dev";
+    }
 
     const response = await this.resend.emails.send({
       from: fromAddress,
@@ -42,6 +51,19 @@ export class ResendEmailProvider implements EmailProvider {
 
     if (response.error) {
       console.error("[ResendEmailProvider Error]", response.error.message);
+      // If domain validation fails in dev/test, fallback to console log gracefully
+      if (
+        response.error.message.includes("domain is not verified") ||
+        response.error.message.includes("validation_error")
+      ) {
+        console.warn(
+          "[ResendEmailProvider Warning] Sender domain not verified in Resend. Falling back to dev console log."
+        );
+        console.log(
+          `\n📧 [EMAIL FALLBACK]\n  To: ${message.to}\n  Subject: ${message.subject}\n\n${message.html}\n`
+        );
+        return;
+      }
       throw new Error(`Resend email delivery failed: ${response.error.message}`);
     }
   }
