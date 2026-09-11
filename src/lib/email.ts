@@ -1,3 +1,5 @@
+import { Resend } from "resend";
+
 export interface EmailMessage {
   to: string;
   subject: string;
@@ -5,19 +7,58 @@ export interface EmailMessage {
   from?: string;
 }
 
-interface EmailProvider {
+export interface EmailProvider {
   send(message: EmailMessage): Promise<void>;
 }
 
-class DevConsoleEmailProvider implements EmailProvider {
+export class DevConsoleEmailProvider implements EmailProvider {
   async send(message: EmailMessage): Promise<void> {
     console.log(
-      `\n📧 [DEV EMAIL]\n  To: ${message.to}\n  Subject: ${message.subject}\n  From: ${message.from ?? "noreply@esign.dev"}\n\n${message.html}\n`
+      `\n📧 [DEV EMAIL CONSOLE FALLBACK]\n  To: ${message.to}\n  Subject: ${message.subject}\n  From: ${message.from ?? process.env.FROM_EMAIL ?? process.env.EMAIL_FROM ?? "noreply@esign.dev"}\n\n${message.html}\n`
     );
   }
 }
 
-export const emailService: EmailProvider = new DevConsoleEmailProvider();
+export class ResendEmailProvider implements EmailProvider {
+  private resend: Resend;
+
+  constructor(apiKey: string) {
+    this.resend = new Resend(apiKey);
+  }
+
+  async send(message: EmailMessage): Promise<void> {
+    const fromAddress =
+      message.from ??
+      process.env.FROM_EMAIL ??
+      process.env.EMAIL_FROM ??
+      "onboarding@resend.dev";
+
+    const response = await this.resend.emails.send({
+      from: fromAddress,
+      to: message.to,
+      subject: message.subject,
+      html: message.html,
+    });
+
+    if (response.error) {
+      console.error("[ResendEmailProvider Error]", response.error.message);
+      throw new Error(`Resend email delivery failed: ${response.error.message}`);
+    }
+  }
+}
+
+function createEmailService(): EmailProvider {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (apiKey) {
+    return new ResendEmailProvider(apiKey);
+  }
+  console.warn(
+    "[emailService] RESEND_API_KEY not found in environment. Using DevConsoleEmailProvider fallback."
+  );
+  return new DevConsoleEmailProvider();
+}
+
+export const emailService: EmailProvider = createEmailService();
 
 export async function sendSigningEmail({
   to,
@@ -32,7 +73,7 @@ export async function sendSigningEmail({
   documentTitle: string;
   token: string;
 }) {
-  const appUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const appUrl = process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const signingUrl = `${appUrl}/sign/${token}`;
   await emailService.send({
     to,
@@ -63,3 +104,4 @@ export const emailProvider = {
     await emailService.send({ to, subject, html: `<pre>${body}</pre>` });
   },
 };
+
