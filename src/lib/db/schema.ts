@@ -4,6 +4,7 @@ import {
   text,
   timestamp,
   integer,
+  numeric,
   boolean,
   jsonb,
   uniqueIndex,
@@ -35,11 +36,11 @@ export const signerStatusEnum = [
 ] as const;
 
 export const fieldTypeEnum = [
-  "signature",
-  "initials",
-  "text",
-  "date",
-  "checkbox",
+  "SIGNATURE",
+  "INITIALS",
+  "TEXT",
+  "DATE",
+  "CHECKBOX",
 ] as const;
 
 // Users table
@@ -125,11 +126,11 @@ export const signatureFields = pgTable("signature_fields", {
   documentId: uuid("document_id").references(() => documents.id, { onDelete: "cascade" }).notNull(),
   signerId: uuid("signer_id").references(() => signers.id, { onDelete: "cascade" }),
   type: text("type", { enum: fieldTypeEnum }).notNull(),
-  page: integer("page").notNull(),
-  x: text("x").notNull(), // percentage position (0-100%)
-  y: text("y").notNull(), // percentage position (0-100%)
-  width: text("width").notNull(), // percentage width (0-100%)
-  height: text("height").notNull(), // percentage height (0-100%)
+  pageNumber: integer("page_number").notNull(), // page number (1‑based)
+  x: numeric("x").notNull(), // normalized 0‑1 coordinate
+  y: numeric("y").notNull(),
+  width: numeric("width").notNull(),
+  height: numeric("height").notNull(),
   required: boolean("required").default(true),
   value: text("value"),
 }, (table) => ({
