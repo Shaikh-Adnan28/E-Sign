@@ -4,7 +4,7 @@ import {
   text,
   timestamp,
   integer,
-  numeric,
+  numeric as numericCol,
   boolean,
   jsonb,
   uniqueIndex,
@@ -127,10 +127,10 @@ export const signatureFields = pgTable("signature_fields", {
   signerId: uuid("signer_id").references(() => signers.id, { onDelete: "cascade" }),
   type: text("type", { enum: fieldTypeEnum }).notNull(),
   pageNumber: integer("page_number").notNull(), // page number (1‑based)
-  x: numeric("x").notNull(), // normalized 0‑1 coordinate
-  y: numeric("y").notNull(),
-  width: numeric("width").notNull(),
-  height: numeric("height").notNull(),
+  x: numericCol("x").notNull(), // normalized 0‑1 coordinate
+  y: numericCol("y").notNull(),
+  width: numericCol("width").notNull(),
+  height: numericCol("height").notNull(),
   required: boolean("required").default(true),
   value: text("value"),
 }, (table) => ({
