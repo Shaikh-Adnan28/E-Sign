@@ -2,7 +2,7 @@
 
 import { useState, useRef, DragEvent, ChangeEvent } from "react"
 import { useRouter } from "next/navigation"
-import { Upload, FileText, X, AlertCircle, Loader2, ShieldCheck, ArrowRight } from "lucide-react"
+import { Upload, FileText, X, AlertCircle, Loader2, ShieldCheck, ArrowRight, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -118,26 +118,26 @@ export function UploadForm() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6 pt-2">
       {/* Header */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+      <div className="text-center sm:text-left space-y-1">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
           Upload Document
         </h1>
-        <p className="text-xs text-slate-500 mt-1 font-medium">
+        <p className="text-xs sm:text-sm text-slate-500 font-medium">
           Upload a PDF document to store securely and prepare for signature.
         </p>
       </div>
 
       {/* Error Alert */}
       {error && (
-        <div className="flex items-start gap-3 p-3.5 rounded-xl bg-red-50 border border-red-200/80 text-red-800 text-xs font-medium">
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50/90 border border-red-200 text-red-800 text-xs font-medium shadow-xs">
           <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
           <div className="flex-1">{error}</div>
           <button
             type="button"
             onClick={() => setError(null)}
-            className="text-red-500 hover:text-red-700 text-xs font-bold"
+            className="text-red-500 hover:text-red-700 text-xs font-bold transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -153,10 +153,10 @@ export function UploadForm() {
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
             className={cn(
-              "relative flex flex-col items-center justify-center p-8 sm:p-12 border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-200",
+              "relative flex flex-col items-center justify-center p-8 sm:p-14 border-2 border-dashed rounded-3xl cursor-pointer transition-all duration-200 group bg-white",
               isDragging
-                ? "border-[#1A56DB] bg-blue-50/60 scale-[1.005]"
-                : "border-slate-300/80 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-400"
+                ? "border-[#1A56DB] bg-blue-50/70 scale-[1.005] shadow-md shadow-blue-500/10"
+                : "border-slate-200 hover:border-blue-400 hover:bg-slate-50/80 shadow-xs"
             )}
           >
             <input
@@ -166,35 +166,40 @@ export function UploadForm() {
               onChange={handleFileInputChange}
               className="hidden"
             />
-            <div className="h-14 w-14 rounded-2xl bg-blue-50 text-[#1A56DB] flex items-center justify-center mb-4 shadow-sm">
+            <div className="h-16 w-16 rounded-2xl bg-blue-50 text-[#1A56DB] flex items-center justify-center mb-4 ring-8 ring-blue-50/50 group-hover:scale-105 transition-transform">
               <Upload className="h-7 w-7" />
             </div>
-            <p className="text-sm font-semibold text-slate-900 text-center">
+            <p className="text-sm sm:text-base font-bold text-slate-900 text-center">
               Drag & drop your PDF document here
             </p>
-            <p className="text-xs text-slate-500 text-center mt-1">
-              or <span className="text-[#1A56DB] font-medium underline">browse files</span> from your computer
+            <p className="text-xs text-slate-500 text-center mt-1.5 font-medium">
+              or <span className="text-[#1A56DB] font-semibold underline underline-offset-2">browse files</span> from your computer
             </p>
-            <div className="flex items-center gap-2 mt-6 px-3 py-1 rounded-full bg-slate-200/60 text-[11px] text-slate-600 font-medium">
-              <ShieldCheck className="h-3.5 w-3.5 text-slate-500" />
-              <span>PDF only, maximum 15 MB</span>
+            <div className="flex items-center gap-2 mt-6 px-3.5 py-1.5 rounded-full bg-slate-100/80 text-[11px] text-slate-600 font-medium border border-slate-200/60">
+              <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
+              <span>PDF only • Maximum 15 MB</span>
             </div>
           </div>
         ) : (
           /* Selected File Card */
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4 shadow-2xs">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="h-11 w-11 rounded-xl bg-blue-50 text-[#1A56DB] flex items-center justify-center shrink-0">
-                  <FileText className="h-5 w-5" />
+          <div className="rounded-2xl border border-slate-200/90 bg-white p-6 space-y-5 shadow-xs">
+            {/* File Info Row */}
+            <div className="flex items-center justify-between gap-4 pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="h-12 w-12 rounded-xl bg-blue-50 text-[#1A56DB] flex items-center justify-center shrink-0 ring-1 ring-blue-500/10">
+                  <FileText className="h-6 w-6" />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-900 truncate">
+                <div className="min-w-0 space-y-0.5">
+                  <p className="text-sm font-bold text-slate-900 truncate">
                     {file.name}
                   </p>
-                  <p className="text-xs text-slate-400">
-                    {(file.size / (1024 * 1024)).toFixed(2)} MB • PDF Document
-                  </p>
+                  <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+                    <span>{(file.size / (1024 * 1024)).toFixed(2)} MB</span>
+                    <span>•</span>
+                    <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold">
+                      <CheckCircle2 className="h-3 w-3" /> Ready to upload
+                    </span>
+                  </div>
                 </div>
               </div>
               {!isUploading && (
@@ -203,7 +208,8 @@ export function UploadForm() {
                   variant="ghost"
                   size="sm"
                   onClick={handleClearFile}
-                  className="text-slate-400 hover:text-slate-600 h-8 w-8 p-0"
+                  className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 h-9 w-9 p-0 rounded-full transition-colors shrink-0"
+                  title="Remove file"
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -211,18 +217,21 @@ export function UploadForm() {
             </div>
 
             {/* Document Title Input */}
-            <div className="space-y-1.5 pt-2 border-t border-slate-100">
-              <Label htmlFor="doc-title" className="text-xs font-semibold text-slate-700">
-                Document Title
-              </Label>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="doc-title" className="text-xs font-bold text-slate-800 tracking-wide uppercase">
+                  Document Title
+                </Label>
+                <span className="text-[11px] text-slate-400 font-medium">Shown on signature requests</span>
+              </div>
               <Input
                 id="doc-title"
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 disabled={isUploading}
-                placeholder="e.g. Sales Agreement 2026"
-                className="h-9 text-xs"
+                placeholder="Enter document title (e.g. Service Agreement 2026)"
+                className="h-10 text-xs sm:text-sm px-3.5 bg-slate-50/50 border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl transition-all font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal"
               />
             </div>
           </div>
@@ -233,17 +242,17 @@ export function UploadForm() {
           <Button
             type="submit"
             disabled={!file || isUploading}
-            className="bg-[#1A56DB] hover:bg-blue-700 text-white font-medium text-xs h-9 px-5 shadow-sm shadow-blue-500/20"
+            className="group bg-gradient-to-r from-[#1A56DB] to-blue-600 hover:from-blue-700 hover:to-blue-800 text-white font-semibold text-xs sm:text-sm h-10 px-6 rounded-xl shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/30 transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
           >
             {isUploading ? (
               <>
-                <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 Uploading PDF...
               </>
             ) : (
               <>
                 Upload & Continue
-                <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+                <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-0.5 transition-transform" />
               </>
             )}
           </Button>
