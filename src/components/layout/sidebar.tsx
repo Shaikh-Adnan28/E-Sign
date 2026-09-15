@@ -8,6 +8,7 @@ import {
   FileText,
   Copy,
   Users,
+  Layers,
   Activity,
   BarChart2,
   Settings,
@@ -43,6 +44,7 @@ const mainNavItems: NavItem[] = [
   { label: "Home", icon: LayoutDashboard, href: "/dashboard" },
   { label: "Documents", icon: FileText, href: "/dashboard/documents" },
   { label: "Templates", icon: Copy, href: "/dashboard/templates" },
+  { label: "Bulk Send", icon: Layers, href: "/dashboard/bulk-send" },
   { label: "Contacts", icon: Users, href: "/dashboard/contacts" },
 ]
 

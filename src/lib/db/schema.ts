@@ -409,6 +409,107 @@ export const templateFieldsRelations = relations(templateFields, ({ one }) => ({
 }));
 
 // Export all schemas
+export const bulkBatchStatusEnum = [
+  "DRAFT",
+  "VALIDATING",
+  "READY",
+  "PROCESSING",
+  "COMPLETED",
+  "COMPLETED_WITH_ERRORS",
+  "FAILED",
+  "CANCELLED",
+] as const;
+
+export const bulkRowStatusEnum = [
+  "PENDING",
+  "PROCESSING",
+  "SENT",
+  "FAILED",
+] as const;
+
+// Bulk Send Batches table
+export const bulkSendBatches = pgTable("bulk_send_batches", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ownerId: uuid("owner_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  templateId: uuid("template_id")
+    .references(() => templates.id, { onDelete: "set null" }),
+  name: text("name").notNull(),
+  status: text("status", { enum: bulkBatchStatusEnum }).default("DRAFT").notNull(),
+  totalRows: integer("total_rows").default(0).notNull(),
+  pendingRows: integer("pending_rows").default(0).notNull(),
+  processingRows: integer("processing_rows").default(0).notNull(),
+  sentRows: integer("sent_rows").default(0).notNull(),
+  failedRows: integer("failed_rows").default(0).notNull(),
+  csvFilename: text("csv_filename"),
+  mappingConfig: jsonb("mapping_config"),
+  reminderConfig: jsonb("reminder_config"),
+  createdAt: timestamp("created_at").defaultNow(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  ownerIdx: index("bulk_send_batches_owner_idx").on(table.ownerId),
+  templateIdx: index("bulk_send_batches_template_idx").on(table.templateId),
+  statusIdx: index("bulk_send_batches_status_idx").on(table.status),
+}));
+
+export type BulkSendBatch = typeof bulkSendBatches.$inferSelect;
+export type NewBulkSendBatch = typeof bulkSendBatches.$inferInsert;
+
+// Bulk Send Rows table
+export const bulkSendRows = pgTable("bulk_send_rows", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  batchId: uuid("batch_id")
+    .references(() => bulkSendBatches.id, { onDelete: "cascade" })
+    .notNull(),
+  rowNumber: integer("row_number").notNull(),
+  sourceData: jsonb("source_data").$type<Record<string, string>>(),
+  mappedData: jsonb("mapped_data"),
+  status: text("status", { enum: bulkRowStatusEnum }).default("PENDING").notNull(),
+  envelopeId: uuid("envelope_id")
+    .references(() => envelopes.id, { onDelete: "set null" }),
+  idempotencyKey: text("idempotency_key").notNull().unique(),
+  attempts: integer("attempts").default(0).notNull(),
+  errorMessage: text("error_message"),
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  batchIdx: index("bulk_send_rows_batch_idx").on(table.batchId),
+  statusIdx: index("bulk_send_rows_status_idx").on(table.status),
+  idempotencyIdx: uniqueIndex("bulk_send_rows_idempotency_idx").on(table.idempotencyKey),
+  envelopeIdx: index("bulk_send_rows_envelope_idx").on(table.envelopeId),
+}));
+
+export type BulkSendRow = typeof bulkSendRows.$inferSelect;
+export type NewBulkSendRow = typeof bulkSendRows.$inferInsert;
+
+// Bulk Send Relations
+export const bulkSendBatchesRelations = relations(bulkSendBatches, ({ one, many }) => ({
+  owner: one(users, {
+    fields: [bulkSendBatches.ownerId],
+    references: [users.id],
+  }),
+  template: one(templates, {
+    fields: [bulkSendBatches.templateId],
+    references: [templates.id],
+  }),
+  rows: many(bulkSendRows),
+}));
+
+export const bulkSendRowsRelations = relations(bulkSendRows, ({ one }) => ({
+  batch: one(bulkSendBatches, {
+    fields: [bulkSendRows.batchId],
+    references: [bulkSendBatches.id],
+  }),
+  envelope: one(envelopes, {
+    fields: [bulkSendRows.envelopeId],
+    references: [envelopes.id],
+  }),
+}));
+
 export const schemas = {
   users,
   organizations,
@@ -423,4 +524,6 @@ export const schemas = {
   templates,
   templateRoles,
   templateFields,
+  bulkSendBatches,
+  bulkSendRows,
 };
