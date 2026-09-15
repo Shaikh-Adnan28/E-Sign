@@ -7,7 +7,7 @@ import {
   envelopes,
   auditEvents,
 } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, lt } from "drizzle-orm";
 import { checkAndCompleteEnvelope } from "@/lib/services/completion";
 import { z } from "zod";
 
@@ -19,6 +19,15 @@ async function findActiveSigner(token: string) {
     .where(eq(signers.token, token))
     .limit(1);
   return row ?? null;
+}
+
+async function isSignerTurn(envelopeId: string, signerOrder: number | null): Promise<boolean> {
+  if (signerOrder === null || signerOrder <= 1) return true;
+  const lowerSigners = await db
+    .select({ status: signers.status })
+    .from(signers)
+    .where(and(eq(signers.envelopeId, envelopeId), lt(signers.order, signerOrder)));
+  return lowerSigners.every((s) => s.status === "SIGNED");
 }
 
 /** GET /api/sign/[token] — returns signing context (no auth required) */
@@ -35,7 +44,7 @@ export async function GET(
 
     const { signer, envelope } = row;
 
-    if (!["SENT", "DELIVERED", "VIEWED"].includes(envelope.status))
+    if (!["SENT", "DELIVERED", "VIEWED", "PARTIALLY_SIGNED"].includes(envelope.status))
       return NextResponse.json(
         { error: "This document is no longer available for signing" },
         { status: 410 }
@@ -46,6 +55,13 @@ export async function GET(
 
     if (signer.status === "DECLINED")
       return NextResponse.json({ error: "Signing was declined" }, { status: 410 });
+
+    const allowed = await isSignerTurn(envelope.id, signer.order);
+    if (!allowed)
+      return NextResponse.json(
+        { error: "It is not your turn to sign this document yet" },
+        { status: 403 }
+      );
 
     // Mark as VIEWED if not already
     if (signer.status === "SENT" || signer.status === "PENDING") {
@@ -140,10 +156,17 @@ export async function POST(
     if (signer.status === "SIGNED")
       return NextResponse.json({ error: "Already signed" }, { status: 409 });
 
-    if (!["SENT", "DELIVERED", "VIEWED"].includes(envelope.status))
+    if (!["SENT", "DELIVERED", "VIEWED", "PARTIALLY_SIGNED"].includes(envelope.status))
       return NextResponse.json(
         { error: "This document is no longer available for signing" },
         { status: 410 }
+      );
+
+    const allowed = await isSignerTurn(envelope.id, signer.order);
+    if (!allowed)
+      return NextResponse.json(
+        { error: "It is not your turn to sign this document yet" },
+        { status: 403 }
       );
 
     const body = await req.json();

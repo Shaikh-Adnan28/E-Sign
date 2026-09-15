@@ -130,6 +130,22 @@ export async function PATCH(
 
     const { title, status, message } = parsed.data
 
+    if (status && status !== existing.status) {
+      const terminalStatuses = ["COMPLETED", "DECLINED", "CANCELLED", "EXPIRED"]
+      if (terminalStatuses.includes(existing.status)) {
+        return NextResponse.json(
+          { error: `Cannot change status of a ${existing.status} envelope` },
+          { status: 409 }
+        )
+      }
+      if (status === "DRAFT") {
+        return NextResponse.json(
+          { error: "Active envelopes cannot transition back to DRAFT state" },
+          { status: 409 }
+        )
+      }
+    }
+
     // Build update payload
     const updateData: Partial<typeof envelopes.$inferInsert> = {
       updatedAt: new Date(),

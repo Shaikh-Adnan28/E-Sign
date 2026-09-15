@@ -39,6 +39,12 @@ export async function PATCH(
     const row = await verifyFieldOwner(fieldId, session.user.id);
     if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+    if (row.envelope.status !== "DRAFT")
+      return NextResponse.json(
+        { error: "Fields cannot be modified after the document has been sent" },
+        { status: 409 }
+      );
+
     const body = await req.json();
     const parsed = patchSchema.safeParse(body);
     if (!parsed.success)
@@ -89,6 +95,12 @@ export async function DELETE(
     const { fieldId } = await params;
     const row = await verifyFieldOwner(fieldId, session.user.id);
     if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    if (row.envelope.status !== "DRAFT")
+      return NextResponse.json(
+        { error: "Fields cannot be deleted after the document has been sent" },
+        { status: 409 }
+      );
 
     await db.delete(signatureFields).where(eq(signatureFields.id, fieldId));
 

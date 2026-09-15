@@ -69,6 +69,12 @@ export async function POST(
     const row = await verifyDocumentOwner(id, session.user.id);
     if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+    if (row.envelope.status !== "DRAFT")
+      return NextResponse.json(
+        { error: "Fields cannot be added after the document has been sent" },
+        { status: 409 }
+      );
+
     const body = await req.json();
     const parsed = fieldSchema.safeParse(body);
     if (!parsed.success)

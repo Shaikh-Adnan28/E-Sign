@@ -472,6 +472,7 @@ export default function EditorClient({
   }
 
   async function handleSend() {
+    if (sending) return;
     setSending(true);
     setSendError("");
     try {
@@ -483,6 +484,8 @@ export default function EditorClient({
         return;
       }
       router.push(`/dashboard/documents/${envelopeId}`);
+    } catch {
+      setSendError("An unexpected error occurred while sending.");
     } finally {
       setSending(false);
     }

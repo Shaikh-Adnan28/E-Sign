@@ -47,22 +47,35 @@ export async function POST(
     const envelopeSigners = await db
       .select()
       .from(signers)
-      .where(eq(signers.envelopeId, id));
+      .where(eq(signers.envelopeId, id))
+      .orderBy(signers.order);
     if (envelopeSigners.length === 0)
       return NextResponse.json(
         { error: "Add at least one recipient before sending" },
         { status: 422 }
       );
 
-    // Update envelope status
-    await db
+    // Atomic update to SENT state (prevents concurrent/double-click duplicate sends)
+    const [updatedEnvelope] = await db
       .update(envelopes)
       .set({ status: "SENT", updatedAt: new Date() })
-      .where(eq(envelopes.id, id));
+      .where(and(eq(envelopes.id, id), eq(envelopes.ownerId, session.user.id), eq(envelopes.status, "DRAFT")))
+      .returning();
 
-    // Update each signer and send email
+    if (!updatedEnvelope)
+      return NextResponse.json(
+        { error: "Envelope has already been sent or is not in DRAFT state" },
+        { status: 409 }
+      );
+
+    // Sequential signing activation: find minimum order among signers
+    const orders = envelopeSigners.map((s) => s.order ?? 1);
+    const minOrder = Math.min(...orders);
+
+    const activeSigners = envelopeSigners.filter((s) => (s.order ?? 1) === minOrder);
     const senderName = session.user.name ?? session.user.email ?? "Someone";
-    for (const signer of envelopeSigners) {
+
+    for (const signer of activeSigners) {
       await db
         .update(signers)
         .set({ status: "SENT" })
@@ -82,7 +95,7 @@ export async function POST(
       envelopeId: id,
       event: "DOCUMENT_SENT",
       actor: session.user.email ?? session.user.id,
-      meta: { recipientCount: envelopeSigners.length },
+      meta: { recipientCount: envelopeSigners.length, activeInitialCount: activeSigners.length },
     });
 
     return NextResponse.json({ success: true });
