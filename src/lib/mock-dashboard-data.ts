@@ -118,14 +118,6 @@ export const MOCK_ACTIVITIES: MockActivity[] = [
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 3),
   },
   {
-    id: "mock-act-4",
-    envelopeId: "mock-env-3",
-    event: "signer.signed",
-    actor: "Michael Brown",
-    envelopeTitle: "Q4 Master Services Consulting Agreement",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5),
-  },
-  {
     id: "mock-act-5",
     envelopeId: "mock-env-4",
     event: "document.sent",
@@ -134,3 +126,98 @@ export const MOCK_ACTIVITIES: MockActivity[] = [
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 28),
   },
 ]
+export interface MockTemplateRole {
+  id: string
+  roleName: string
+  order: number
+}
+
+export interface MockTemplateField {
+  id: string
+  roleId: string | null
+  type: "SIGNATURE" | "INITIALS" | "TEXT" | "DATE" | "CHECKBOX"
+  pageNumber: number
+  x: number
+  y: number
+  width: number
+  height: number
+  required: boolean
+}
+
+export interface MockTemplate {
+  id: string
+  name: string
+  description: string | null
+  filename: string
+  pageCount: number
+  usageCount: number
+  status: "ACTIVE" | "ARCHIVED"
+  createdAt: Date
+  updatedAt: Date
+  roles: MockTemplateRole[]
+  fields: MockTemplateField[]
+}
+
+export const MOCK_TEMPLATES: MockTemplate[] = [
+  {
+    id: "mock-tmpl-1",
+    name: "Standard Employment Agreement",
+    description: "Standard full-time employment contract with non-compete and IP assignment clauses.",
+    filename: "Employment_Agreement_Template.pdf",
+    pageCount: 4,
+    usageCount: 24,
+    status: "ACTIVE",
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30),
+    updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
+    roles: [
+      { id: "role-1", roleName: "Employee", order: 1 },
+      { id: "role-2", roleName: "Hiring Manager", order: 2 },
+    ],
+    fields: [
+      { id: "f-1", roleId: "role-1", type: "SIGNATURE", pageNumber: 4, x: 0.1, y: 0.7, width: 0.35, height: 0.08, required: true },
+      { id: "f-2", roleId: "role-1", type: "TEXT", pageNumber: 4, x: 0.1, y: 0.6, width: 0.35, height: 0.04, required: true },
+      { id: "f-3", roleId: "role-1", type: "DATE", pageNumber: 4, x: 0.1, y: 0.8, width: 0.25, height: 0.04, required: true },
+      { id: "f-4", roleId: "role-2", type: "SIGNATURE", pageNumber: 4, x: 0.55, y: 0.7, width: 0.35, height: 0.08, required: true },
+      { id: "f-5", roleId: "role-2", type: "DATE", pageNumber: 4, x: 0.55, y: 0.8, width: 0.25, height: 0.04, required: true },
+    ],
+  },
+  {
+    id: "mock-tmpl-2",
+    name: "Standard Mutual NDA",
+    description: "Bilateral non-disclosure agreement for prospective business discussions and partnerships.",
+    filename: "Mutual_NDA_Standard.pdf",
+    pageCount: 2,
+    usageCount: 56,
+    status: "ACTIVE",
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60),
+    updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5),
+    roles: [
+      { id: "role-1", roleName: "Party A (Disclosing)", order: 1 },
+      { id: "role-2", roleName: "Party B (Receiving)", order: 2 },
+    ],
+    fields: [
+      { id: "f-6", roleId: "role-1", type: "SIGNATURE", pageNumber: 2, x: 0.1, y: 0.75, width: 0.35, height: 0.08, required: true },
+      { id: "f-7", roleId: "role-2", type: "SIGNATURE", pageNumber: 2, x: 0.55, y: 0.75, width: 0.35, height: 0.08, required: true },
+    ],
+  },
+  {
+    id: "mock-tmpl-3",
+    name: "Independent Contractor Agreement",
+    description: "Statement of work and contractor terms for 1099 freelancers.",
+    filename: "Contractor_SOW_Template.pdf",
+    pageCount: 3,
+    usageCount: 12,
+    status: "ACTIVE",
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 14),
+    updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1),
+    roles: [
+      { id: "role-1", roleName: "Contractor", order: 1 },
+      { id: "role-2", roleName: "Client Representative", order: 2 },
+    ],
+    fields: [
+      { id: "f-8", roleId: "role-1", type: "SIGNATURE", pageNumber: 3, x: 0.1, y: 0.7, width: 0.35, height: 0.08, required: true },
+      { id: "f-9", roleId: "role-2", type: "SIGNATURE", pageNumber: 3, x: 0.55, y: 0.7, width: 0.35, height: 0.08, required: true },
+    ],
+  },
+]
+

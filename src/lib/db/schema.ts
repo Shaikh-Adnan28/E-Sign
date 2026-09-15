@@ -242,6 +242,101 @@ export const usersRelationsWithContacts = relations(users, ({ many }) => ({
   contacts: many(contacts),
 }));
 
+export const templateStatusEnum = ["ACTIVE", "ARCHIVED"] as const;
+
+// Templates table
+export const templates = pgTable("templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ownerId: uuid("owner_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  filename: text("filename").notNull(),
+  storageKey: text("storage_key").notNull(),
+  pageCount: integer("page_count"),
+  usageCount: integer("usage_count").default(0).notNull(),
+  status: text("status", { enum: templateStatusEnum }).default("ACTIVE").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  ownerIdx: index("templates_owner_idx").on(table.ownerId),
+  statusIdx: index("templates_status_idx").on(table.status),
+}));
+
+export type Template = typeof templates.$inferSelect;
+export type NewTemplate = typeof templates.$inferInsert;
+
+// Template Roles table
+export const templateRoles = pgTable("template_roles", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  templateId: uuid("template_id")
+    .references(() => templates.id, { onDelete: "cascade" })
+    .notNull(),
+  roleName: text("role_name").notNull(),
+  order: integer("order").default(1).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  templateIdx: index("template_roles_template_idx").on(table.templateId),
+}));
+
+export type TemplateRole = typeof templateRoles.$inferSelect;
+export type NewTemplateRole = typeof templateRoles.$inferInsert;
+
+// Template Fields table
+export const templateFields = pgTable("template_fields", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  templateId: uuid("template_id")
+    .references(() => templates.id, { onDelete: "cascade" })
+    .notNull(),
+  roleId: uuid("role_id")
+    .references(() => templateRoles.id, { onDelete: "cascade" }),
+  type: text("type", { enum: fieldTypeEnum }).notNull(),
+  pageNumber: integer("page_number").notNull(),
+  x: numericCol("x").notNull(),
+  y: numericCol("y").notNull(),
+  width: numericCol("width").notNull(),
+  height: numericCol("height").notNull(),
+  required: boolean("required").default(true),
+  placeholder: text("placeholder"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  templateIdx: index("template_fields_template_idx").on(table.templateId),
+  roleIdx: index("template_fields_role_idx").on(table.roleId),
+}));
+
+export type TemplateField = typeof templateFields.$inferSelect;
+export type NewTemplateField = typeof templateFields.$inferInsert;
+
+// Template Relations
+export const templatesRelations = relations(templates, ({ one, many }) => ({
+  owner: one(users, {
+    fields: [templates.ownerId],
+    references: [users.id],
+  }),
+  roles: many(templateRoles),
+  fields: many(templateFields),
+}));
+
+export const templateRolesRelations = relations(templateRoles, ({ one, many }) => ({
+  template: one(templates, {
+    fields: [templateRoles.templateId],
+    references: [templates.id],
+  }),
+  fields: many(templateFields),
+}));
+
+export const templateFieldsRelations = relations(templateFields, ({ one }) => ({
+  template: one(templates, {
+    fields: [templateFields.templateId],
+    references: [templates.id],
+  }),
+  role: one(templateRoles, {
+    fields: [templateFields.roleId],
+    references: [templateRoles.id],
+  }),
+}));
+
 // Export all schemas
 export const schemas = {
   users,
@@ -252,4 +347,7 @@ export const schemas = {
   signatureFields,
   auditEvents,
   contacts,
+  templates,
+  templateRoles,
+  templateFields,
 };
