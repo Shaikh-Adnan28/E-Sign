@@ -12,8 +12,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, Users, UserCheck } from "lucide-react"
-import type { Contact } from "@/lib/db/schema"
+import { Loader2, UserCheck } from "lucide-react"
+import { RecipientPicker, type SelectedRecipient } from "@/components/contacts/RecipientPicker"
 
 interface RoleInput {
   roleId: string
@@ -41,10 +41,8 @@ export function UseTemplateModal({
   const router = useRouter()
   const [title, setTitle] = useState("")
   const [roleInputs, setRoleInputs] = useState<RoleInput[]>([])
-  const [contacts, setContacts] = useState<Contact[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [activeContactPickerIdx, setActiveContactPickerIdx] = useState<number | null>(null)
 
   useEffect(() => {
     if (template) {
@@ -62,29 +60,18 @@ export function UseTemplateModal({
     }
   }, [template])
 
-  useEffect(() => {
-    if (open) {
-      // Fetch contacts for quick selection
-      fetch("/api/contacts?limit=50")
-        .then((res) => (res.ok ? res.json() : { data: [] }))
-        .then((json) => setContacts(json.data || []))
-        .catch(() => {})
-    }
-  }, [open])
-
-  function updateRoleInput(index: number, key: "email" | "name", val: string) {
-    setRoleInputs((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, [key]: val } : item))
-    )
-  }
-
-  function applyContact(index: number, contact: Contact) {
+  function handleRecipientChange(index: number, selected: SelectedRecipient | null) {
     setRoleInputs((prev) =>
       prev.map((item, i) =>
-        i === index ? { ...item, name: contact.name, email: contact.email } : item
+        i === index
+          ? {
+              ...item,
+              name: selected?.name || "",
+              email: selected?.email || "",
+            }
+          : item
       )
     )
-    setActiveContactPickerIdx(null)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -174,64 +161,13 @@ export function UseTemplateModal({
                   <span className="text-xs font-bold text-[#1A56DB] flex items-center gap-1.5">
                     <UserCheck className="h-4 w-4" /> Role {role.order}: {role.roleName}
                   </span>
-
-                  {contacts.length > 0 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        setActiveContactPickerIdx(
-                          activeContactPickerIdx === idx ? null : idx
-                        )
-                      }
-                      className="h-6 text-[11px] text-slate-600 hover:text-blue-600 px-2"
-                    >
-                      <Users className="h-3 w-3 mr-1" /> Select Contact
-                    </Button>
-                  )}
                 </div>
 
-                {/* Contacts Picker Dropdown */}
-                {activeContactPickerIdx === idx && (
-                  <div className="absolute right-3 top-10 z-20 w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-2 max-h-48 overflow-y-auto space-y-1">
-                    <div className="text-[10px] font-bold text-slate-400 px-2 py-1 uppercase">
-                      Select Contact
-                    </div>
-                    {contacts.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => applyContact(idx, c)}
-                        className="w-full text-left px-2 py-1.5 rounded hover:bg-blue-50 text-xs transition-colors truncate"
-                      >
-                        <span className="font-bold text-slate-900 block truncate">
-                          {c.name}
-                        </span>
-                        <span className="text-[10px] text-slate-500 block truncate">
-                          {c.email}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <Input
-                    placeholder="Recipient Full Name"
-                    value={role.name}
-                    onChange={(e) => updateRoleInput(idx, "name", e.target.value)}
-                    className="h-8 text-xs bg-white"
-                  />
-                  <Input
-                    type="email"
-                    placeholder="Recipient Email *"
-                    value={role.email}
-                    onChange={(e) => updateRoleInput(idx, "email", e.target.value)}
-                    className="h-8 text-xs bg-white"
-                    required
-                  />
-                </div>
+                <RecipientPicker
+                  value={role.email ? { name: role.name, email: role.email } : null}
+                  onChange={(selected) => handleRecipientChange(idx, selected)}
+                  placeholder={`Search address book or enter recipient for ${role.roleName}...`}
+                />
               </div>
             ))}
           </div>
@@ -267,3 +203,4 @@ export function UseTemplateModal({
     </Dialog>
   )
 }
+

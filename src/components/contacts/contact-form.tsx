@@ -23,6 +23,7 @@ export const contactSchema = z.object({
       (val) => !val || /^[+\d\s\-().]{0,50}$/.test(val),
       "Invalid phone number"
     ),
+  tags: z.string().max(255).trim().optional().or(z.literal("")),
   notes: z.string().max(2000).trim().optional().or(z.literal("")),
 })
 
@@ -56,6 +57,7 @@ export function ContactForm({
       email: "",
       company: "",
       phone: "",
+      tags: "",
       notes: "",
       ...defaultValues,
     },
@@ -122,6 +124,19 @@ export function ContactForm({
         />
         {errors.phone && (
           <p className="text-xs text-red-500">{errors.phone.message}</p>
+        )}
+      </div>
+
+      {/* Tags */}
+      <div className="space-y-1.5">
+        <Label htmlFor="tags">Tags (comma separated)</Label>
+        <Input
+          id="tags"
+          placeholder="VIP, Vendor, Executive"
+          {...register("tags")}
+        />
+        {errors.tags && (
+          <p className="text-xs text-red-500">{errors.tags.message}</p>
         )}
       </div>
 

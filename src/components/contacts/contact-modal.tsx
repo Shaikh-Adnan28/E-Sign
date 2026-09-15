@@ -28,6 +28,7 @@ export function AddContactModal({
   async function handleSubmit(data: ContactFormData) {
     setIsLoading(true)
     setError(null)
+    const tagsArray = data.tags ? data.tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined
     try {
       const res = await fetch("/api/contacts", {
         method: "POST",
@@ -37,6 +38,7 @@ export function AddContactModal({
           email: data.email,
           company: data.company || undefined,
           phone: data.phone || undefined,
+          tags: tagsArray,
           notes: data.notes || undefined,
         }),
       })
@@ -94,6 +96,7 @@ export function EditContactModal({
   async function handleSubmit(data: ContactFormData) {
     setIsLoading(true)
     setError(null)
+    const tagsArray = data.tags ? data.tags.split(",").map((t) => t.trim()).filter(Boolean) : []
     try {
       const res = await fetch(`/api/contacts/${contact.id}`, {
         method: "PATCH",
@@ -103,6 +106,7 @@ export function EditContactModal({
           email: data.email,
           company: data.company || null,
           phone: data.phone || null,
+          tags: tagsArray,
           notes: data.notes || null,
         }),
       })
@@ -135,6 +139,7 @@ export function EditContactModal({
             email: contact.email,
             company: contact.company ?? "",
             phone: contact.phone ?? "",
+            tags: contact.tags ? contact.tags.join(", ") : "",
             notes: contact.notes ?? "",
           }}
           onSubmit={handleSubmit}

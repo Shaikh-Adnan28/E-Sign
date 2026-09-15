@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import { Plus, Search, Users, X } from "lucide-react"
+import { Plus, Search, Users, X, Download, Upload, History, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { ContactCard } from "./contact-card"
 import { AddContactModal, EditContactModal } from "./contact-modal"
 import { DeleteContactDialog } from "./delete-contact-dialog"
@@ -17,6 +18,14 @@ interface ContactsResponse {
   totalPages: number
 }
 
+interface ActivityEvent {
+  id: string
+  event: string
+  actor: string
+  createdAt: string
+  meta: Record<string, unknown> | null
+}
+
 export function ContactsClient() {
   const [contacts, setContacts] = useState<Contact[]>([])
   const [total, setTotal] = useState(0)
@@ -26,11 +35,23 @@ export function ContactsClient() {
   const [search, setSearch] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
   const [sort] = useState<"name_asc" | "name_desc" | "newest" | "oldest">("name_asc")
+  const [activeTab, setActiveTab] = useState<"all" | "groups">("all")
 
   // Modals
   const [addOpen, setAddOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Contact | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null)
+
+  // CSV Import Modal
+  const [importOpen, setImportOpen] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [isImporting, setIsImporting] = useState(false)
+  const [importResult, setImportResult] = useState<{ imported: number; skippedDuplicates: number; totalRows: number; errors?: string[] } | null>(null)
+
+  // Activity Modal
+  const [activityTarget, setActivityTarget] = useState<Contact | null>(null)
+  const [activities, setActivities] = useState<ActivityEvent[]>([])
+  const [loadingActivity, setLoadingActivity] = useState(false)
 
   // Debounce search
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -73,8 +94,19 @@ export function ContactsClient() {
     fetchContacts()
   }, [fetchContacts])
 
+  // Fetch Activity when activity target changes
+  useEffect(() => {
+    if (!activityTarget) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoadingActivity(true)
+    fetch(`/api/contacts/${activityTarget.id}/activity`)
+      .then((res) => (res.ok ? res.json() : { events: [] }))
+      .then((json) => setActivities(json.events || []))
+      .catch(() => setActivities([]))
+      .finally(() => setLoadingActivity(false))
+  }, [activityTarget])
+
   function handleAddSuccess(contact: Contact) {
-    // Prepend if no search active and first page, otherwise re-fetch
     if (!debouncedSearch && page === 1) {
       setContacts((prev) => [contact, ...prev])
       setTotal((t) => t + 1)
@@ -94,6 +126,42 @@ export function ContactsClient() {
     setDeleteTarget(null)
   }
 
+  async function handleImportSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!importFile) return
+    setIsImporting(true)
+    setImportResult(null)
+
+    try {
+      const formData = new FormData()
+      formData.append("file", importFile)
+      const res = await fetch("/api/contacts/import", {
+        method: "POST",
+        body: formData,
+      })
+      const json = await res.json()
+      if (res.ok) {
+        setImportResult(json)
+        fetchContacts()
+      } else {
+        setImportResult({ imported: 0, skippedDuplicates: 0, totalRows: 0, errors: [json.error || "Import failed"] })
+      }
+    } catch {
+      setImportResult({ imported: 0, skippedDuplicates: 0, totalRows: 0, errors: ["An unexpected error occurred during import"] })
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  const handleExportCsv = () => {
+    const a = document.createElement("a")
+    a.href = "/api/contacts/export"
+    a.setAttribute("download", "")
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  }
+
   // ── Render ────────────────────────────────────────────────────
 
   const hasContacts = contacts.length > 0
@@ -104,26 +172,45 @@ export function ContactsClient() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Contacts</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Address Book</h1>
           <p className="mt-0.5 text-sm text-slate-500">
-            {total > 0 ? `${total} contact${total === 1 ? "" : "s"}` : "Manage your signers and contacts"}
+            {total > 0 ? `${total} contact${total === 1 ? "" : "s"}` : "Manage reusable signers, tags, and groups"}
           </p>
         </div>
-        <Button onClick={() => setAddOpen(true)} className="shrink-0">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Contact
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button variant="outline" size="sm" onClick={handleExportCsv} className="h-9 text-xs">
+            <Download className="mr-1.5 h-3.5 w-3.5" /> Export CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => { setImportOpen(true); setImportResult(null); setImportFile(null); }} className="h-9 text-xs">
+            <Upload className="mr-1.5 h-3.5 w-3.5" /> Import CSV
+          </Button>
+          <Button onClick={() => setAddOpen(true)} className="h-9 text-xs bg-[#1A56DB] hover:bg-blue-700 text-white">
+            <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Contact
+          </Button>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-slate-200">
+        <button
+          onClick={() => setActiveTab("all")}
+          className={`py-2 px-4 text-xs font-semibold border-b-2 transition-colors ${
+            activeTab === "all" ? "border-[#1A56DB] text-[#1A56DB]" : "border-transparent text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          All Contacts ({total})
+        </button>
       </div>
 
       {/* Search bar — only show if there are contacts or a search is active */}
-      {(!isEmpty) && (
+      {!isEmpty && (
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
-            placeholder="Search by name, email or company…"
+            placeholder="Search by name, email, company or tag…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 pr-9"
+            className="pl-9 pr-9 text-xs h-9 bg-white"
           />
           {search && (
             <button
@@ -173,6 +260,7 @@ export function ContactsClient() {
                 contact={contact}
                 onEdit={setEditTarget}
                 onDelete={setDeleteTarget}
+                onViewActivity={setActivityTarget}
               />
             ))}
           </div>
@@ -188,7 +276,95 @@ export function ContactsClient() {
         </>
       )}
 
-      {/* Modals */}
+      {/* CSV Import Modal */}
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Import Contacts CSV</DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Upload a .csv file containing contact rows with headers: name, email, company, phone, tags, notes.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleImportSubmit} className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Input
+                type="file"
+                accept=".csv,text/csv"
+                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                className="text-xs h-9 cursor-pointer"
+              />
+            </div>
+
+            {importResult && (
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1 text-xs">
+                <p className="font-bold text-slate-800 flex items-center gap-1">
+                  <CheckCircle className="h-4 w-4 text-emerald-600" /> Import Summary
+                </p>
+                <p className="text-slate-600">Imported: <strong>{importResult.imported}</strong> contacts</p>
+                <p className="text-slate-600">Skipped Duplicates: <strong>{importResult.skippedDuplicates}</strong> contacts</p>
+                {importResult.errors && importResult.errors.length > 0 && (
+                  <div className="text-red-600 space-y-0.5 pt-1 border-t border-slate-200">
+                    {importResult.errors.map((err, idx) => (
+                      <p key={idx} className="flex items-center gap-1"><AlertCircle size={12} /> {err}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setImportOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" disabled={!importFile || isImporting} className="bg-[#1A56DB] hover:bg-blue-700 text-white font-semibold">
+                {isImporting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                Import CSV
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Activity Timeline Modal */}
+      <Dialog open={!!activityTarget} onOpenChange={(open) => !open && setActivityTarget(null)}>
+        <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <History className="h-4 w-4 text-[#1A56DB]" />
+              Activity History: {activityTarget?.name}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Audit log of document interactions for {activityTarget?.email}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 pt-2">
+            {loadingActivity ? (
+              <div className="py-8 text-center text-xs text-slate-400">
+                <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2 text-blue-600" />
+                Loading activity history...
+              </div>
+            ) : activities.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-500">
+                No recorded envelope activity for this recipient yet.
+              </div>
+            ) : (
+              <div className="space-y-2 border-l-2 border-slate-100 pl-3">
+                {activities.map((act) => (
+                  <div key={act.id} className="text-xs space-y-0.5 relative">
+                    <div className="absolute -left-[17px] top-1 h-2 w-2 rounded-full bg-blue-500" />
+                    <p className="font-bold text-slate-800">{act.event.replace(/_/g, " ")}</p>
+                    <p className="text-[10px] text-slate-400">{new Date(act.createdAt).toLocaleString()}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add / Edit / Delete Modals */}
       <AddContactModal
         open={addOpen}
         onOpenChange={setAddOpen}

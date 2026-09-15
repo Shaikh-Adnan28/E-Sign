@@ -1,6 +1,6 @@
 "use client"
 
-import { Building2, Mail, Phone, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
+import { Building2, Mail, Phone, MoreHorizontal, Pencil, Trash2, Tag, History, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -16,6 +16,7 @@ interface ContactCardProps {
   contact: Contact
   onEdit: (contact: Contact) => void
   onDelete: (contact: Contact) => void
+  onViewActivity?: (contact: Contact) => void
 }
 
 // Deterministic avatar color based on name
@@ -38,12 +39,12 @@ function getAvatarColor(name: string) {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
 }
 
-export function ContactCard({ contact, onEdit, onDelete }: ContactCardProps) {
+export function ContactCard({ contact, onEdit, onDelete, onViewActivity }: ContactCardProps) {
   const initials = getInitials(contact.name)
   const avatarColor = getAvatarColor(contact.name)
 
   return (
-    <div className="group flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-slate-300 hover:shadow-sm">
+    <div className="group flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-slate-300 hover:shadow-sm relative">
       {/* Avatar */}
       <div
         className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${avatarColor}`}
@@ -53,7 +54,14 @@ export function ContactCard({ contact, onEdit, onDelete }: ContactCardProps) {
 
       {/* Info */}
       <div className="min-w-0 flex-1 space-y-1">
-        <p className="truncate font-semibold text-slate-900">{contact.name}</p>
+        <div className="flex items-center gap-2">
+          <p className="truncate font-semibold text-slate-900">{contact.name}</p>
+          {contact.usageCount > 0 && (
+            <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+              <Clock size={10} /> {contact.usageCount}x
+            </span>
+          )}
+        </div>
 
         <a
           href={`mailto:${contact.email}`}
@@ -80,6 +88,19 @@ export function ContactCard({ contact, onEdit, onDelete }: ContactCardProps) {
           </a>
         )}
 
+        {contact.tags && contact.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 pt-1">
+            {contact.tags.map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center gap-1 text-[10px] font-medium bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-100"
+              >
+                <Tag size={9} /> {tag}
+              </span>
+            ))}
+          </div>
+        )}
+
         {contact.notes && (
           <p className="mt-1.5 line-clamp-2 text-xs text-slate-400 italic">
             {contact.notes}
@@ -99,18 +120,24 @@ export function ContactCard({ contact, onEdit, onDelete }: ContactCardProps) {
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-40">
-          <DropdownMenuItem onClick={() => onEdit(contact)} className="cursor-pointer">
-            <Pencil className="mr-2 h-4 w-4" />
-            Edit
+        <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuItem onClick={() => onEdit(contact)} className="cursor-pointer text-xs">
+            <Pencil className="mr-2 h-3.5 w-3.5" />
+            Edit Contact
           </DropdownMenuItem>
+          {onViewActivity && (
+            <DropdownMenuItem onClick={() => onViewActivity(contact)} className="cursor-pointer text-xs">
+              <History className="mr-2 h-3.5 w-3.5" />
+              View Activity
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() => onDelete(contact)}
-            className="cursor-pointer text-red-600 focus:text-red-600"
+            className="cursor-pointer text-xs text-red-600 focus:text-red-600"
           >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete
+            <Trash2 className="mr-2 h-3.5 w-3.5" />
+            Delete Contact
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

@@ -25,13 +25,12 @@ import {
   Users,
   FileText,
   X,
-  Plus,
   Loader2,
 } from "lucide-react";
 import { useEditorStore, type LocalField, type FieldType } from "@/stores/editor-store";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RecipientPicker, type SelectedRecipient } from "@/components/contacts/RecipientPicker";
 
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
@@ -223,20 +222,18 @@ function RecipientsPanel({
   signers: SignerInfo[];
   onSignersChange: (signers: SignerInfo[]) => void;
 }) {
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
 
-  async function addSigner() {
-    if (!email) return;
+  async function handleSelectRecipient(rec: SelectedRecipient | null) {
+    if (!rec || !rec.email) return;
     setAdding(true);
     setError("");
     try {
       const res = await fetch(`/api/envelopes/${envelopeId}/signers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, name: name || undefined, order: signers.length }),
+        body: JSON.stringify({ email: rec.email, name: rec.name || undefined, order: signers.length }),
       });
       if (!res.ok) {
         const j = await res.json();
@@ -245,8 +242,29 @@ function RecipientsPanel({
       }
       const signer = await res.json();
       onSignersChange([...signers, { id: signer.id, name: signer.name, email: signer.email, order: signer.order ?? 0, status: signer.status ?? "PENDING" }]);
-      setEmail("");
-      setName("");
+    } finally {
+      setAdding(false);
+    }
+  }
+
+  async function handleSelectGroup(members: Array<{ name: string; email: string }>) {
+    setAdding(true);
+    setError("");
+    try {
+      const newSigners = [...signers];
+      for (const m of members) {
+        if (newSigners.some((s) => s.email.toLowerCase() === m.email.toLowerCase())) continue;
+        const res = await fetch(`/api/envelopes/${envelopeId}/signers`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: m.email, name: m.name || undefined, order: newSigners.length }),
+        });
+        if (res.ok) {
+          const signer = await res.json();
+          newSigners.push({ id: signer.id, name: signer.name, email: signer.email, order: signer.order ?? 0, status: signer.status ?? "PENDING" });
+        }
+      }
+      onSignersChange(newSigners);
     } finally {
       setAdding(false);
     }
@@ -278,14 +296,18 @@ function RecipientsPanel({
           </div>
         ))}
       </div>
-      <div className="flex flex-col gap-1.5 mt-1">
-        <Input placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} className="h-8 text-xs" type="email" />
-        <Input placeholder="Name (optional)" value={name} onChange={(e) => setName(e.target.value)} className="h-8 text-xs" />
-        {error && <p className="text-xs text-red-500">{error}</p>}
-        <Button size="sm" onClick={addSigner} disabled={adding || !email} className="h-8 text-xs gap-1.5">
-          {adding ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
-          Add recipient
-        </Button>
+
+      <div className="pt-1">
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Add Recipient</p>
+        <RecipientPicker
+          value={null}
+          onChange={handleSelectRecipient}
+          allowGroupSelection={true}
+          onGroupSelected={handleSelectGroup}
+          placeholder="Add contact or group..."
+        />
+        {adding && <p className="text-[10px] text-blue-600 mt-1">Adding signer...</p>}
+        {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
       </div>
     </div>
   );

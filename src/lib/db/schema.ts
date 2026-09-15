@@ -218,28 +218,89 @@ export const contacts = pgTable("contacts", {
   company: text("company"),
   phone: text("phone"),
   notes: text("notes"),
+  tags: jsonb("tags").$type<string[]>().default([]).notNull(),
+  usageCount: integer("usage_count").default(0).notNull(),
+  lastUsedAt: timestamp("last_used_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
   ownerIdx: index("contacts_owner_idx").on(table.ownerId),
   ownerEmailIdx: uniqueIndex("contacts_owner_email_idx").on(table.ownerId, table.email),
+  lastUsedIdx: index("contacts_last_used_idx").on(table.lastUsedAt),
 }));
 
 export type Contact = typeof contacts.$inferSelect;
 export type NewContact = typeof contacts.$inferInsert;
 
-// Contacts relations
-export const contactsRelations = relations(contacts, ({ one }) => ({
+// Contact Groups table
+export const contactGroups = pgTable("contact_groups", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ownerId: uuid("owner_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  ownerIdx: index("contact_groups_owner_idx").on(table.ownerId),
+}));
+
+export type ContactGroup = typeof contactGroups.$inferSelect;
+export type NewContactGroup = typeof contactGroups.$inferInsert;
+
+// Contact Group Members table
+export const contactGroupMembers = pgTable("contact_group_members", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  groupId: uuid("group_id")
+    .references(() => contactGroups.id, { onDelete: "cascade" })
+    .notNull(),
+  contactId: uuid("contact_id")
+    .references(() => contacts.id, { onDelete: "cascade" })
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  groupIdx: index("group_members_group_idx").on(table.groupId),
+  contactIdx: index("group_members_contact_idx").on(table.contactId),
+  groupContactIdx: uniqueIndex("group_members_group_contact_idx").on(table.groupId, table.contactId),
+}));
+
+export type ContactGroupMember = typeof contactGroupMembers.$inferSelect;
+export type NewContactGroupMember = typeof contactGroupMembers.$inferInsert;
+
+// Contacts & Groups relations
+export const contactsRelations = relations(contacts, ({ one, many }) => ({
   owner: one(users, {
     fields: [contacts.ownerId],
     references: [users.id],
   }),
+  groupMemberships: many(contactGroupMembers),
 }));
 
-// Update users relations to include contacts
+export const contactGroupsRelations = relations(contactGroups, ({ one, many }) => ({
+  owner: one(users, {
+    fields: [contactGroups.ownerId],
+    references: [users.id],
+  }),
+  members: many(contactGroupMembers),
+}));
+
+export const contactGroupMembersRelations = relations(contactGroupMembers, ({ one }) => ({
+  group: one(contactGroups, {
+    fields: [contactGroupMembers.groupId],
+    references: [contactGroups.id],
+  }),
+  contact: one(contacts, {
+    fields: [contactGroupMembers.contactId],
+    references: [contacts.id],
+  }),
+}));
+
+// Update users relations to include contacts and groups
 export const usersRelationsWithContacts = relations(users, ({ many }) => ({
   envelopes: many(envelopes),
   contacts: many(contacts),
+  contactGroups: many(contactGroups),
 }));
 
 export const templateStatusEnum = ["ACTIVE", "ARCHIVED"] as const;
@@ -347,6 +408,8 @@ export const schemas = {
   signatureFields,
   auditEvents,
   contacts,
+  contactGroups,
+  contactGroupMembers,
   templates,
   templateRoles,
   templateFields,
