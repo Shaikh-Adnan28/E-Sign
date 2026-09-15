@@ -840,9 +840,26 @@ export function BulkSendClient({
           ) : (
             <div className="divide-y divide-slate-100 text-xs">
               {batches.map((b) => {
-                const isCompleted = b.status === "COMPLETED";
                 const isPartial = b.status === "COMPLETED_WITH_ERRORS";
                 const isFailed = b.status === "FAILED";
+
+                const getStatusInfo = (status: string) => {
+                  switch (status) {
+                    case "COMPLETED":
+                      return { label: "Completed", class: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+                    case "COMPLETED_WITH_ERRORS":
+                      return { label: "Partial Success", class: "bg-amber-50 text-amber-700 border-amber-200" };
+                    case "FAILED":
+                      return { label: "Failed", class: "bg-red-50 text-red-700 border-red-200" };
+                    case "PROCESSING":
+                      return { label: "Processing", class: "bg-blue-50 text-blue-700 border-blue-200 animate-pulse" };
+                    default:
+                      return { label: "Ready", class: "bg-slate-100 text-slate-700 border-slate-200" };
+                  }
+                };
+
+                const statusInfo = getStatusInfo(b.status);
+                const percentSent = b.totalRows > 0 ? Math.round((b.sentRows / b.totalRows) * 100) : 0;
 
                 return (
                   <div key={b.id} className="p-4 hover:bg-slate-50 flex items-center justify-between gap-4 transition-colors">
@@ -856,38 +873,32 @@ export function BulkSendClient({
                         </Link>
                         <span
                           className={cn(
-                            "font-semibold text-[10px] px-2 py-0.5 rounded-full shrink-0",
-                            isCompleted
-                              ? "bg-emerald-100 text-emerald-800"
-                              : isPartial
-                              ? "bg-amber-100 text-amber-800"
-                              : isFailed
-                              ? "bg-red-100 text-red-800"
-                              : "bg-blue-100 text-blue-800"
+                            "font-bold text-[10px] px-2 py-0.5 rounded-full border shrink-0 uppercase tracking-wide",
+                            statusInfo.class
                           )}
                         >
-                          {b.status}
+                          {statusInfo.label}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-400 font-medium">
-                        Template: <strong className="text-slate-600">{b.templateName}</strong> &bull; Created {b.createdAt ? formatRelativeDate(new Date(b.createdAt)) : ""}
+                      <p className="text-[11px] text-slate-500 font-medium">
+                        Template: <strong className="text-slate-700">{b.templateName}</strong> &bull; Created {b.createdAt ? formatRelativeDate(new Date(b.createdAt)) : "recently"}
                       </p>
                     </div>
 
                     {/* Progress Bar & Counters */}
-                    <div className="w-48 hidden sm:block space-y-1">
-                      <div className="flex justify-between text-[11px] text-slate-500 font-medium">
-                        <span>{b.sentRows} sent</span>
-                        <span>{b.totalRows} total</span>
+                    <div className="w-52 hidden sm:block bg-slate-50/80 border border-slate-200/80 rounded-xl p-2 space-y-1">
+                      <div className="flex justify-between text-[10px] font-bold text-slate-600">
+                        <span>{b.sentRows} / {b.totalRows} sent</span>
+                        <span>{percentSent}%</span>
                       </div>
-                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
                         <div
                           className={cn(
-                            "h-full rounded-full transition-all",
-                            isPartial ? "bg-amber-500" : isFailed ? "bg-red-500" : "bg-emerald-500"
+                            "h-full rounded-full transition-all duration-300",
+                            isPartial ? "bg-amber-500" : isFailed ? "bg-red-500" : "bg-[#1A56DB]"
                           )}
                           style={{
-                            width: `${b.totalRows > 0 ? Math.round((b.sentRows / b.totalRows) * 100) : 0}%`,
+                            width: `${percentSent}%`,
                           }}
                         />
                       </div>

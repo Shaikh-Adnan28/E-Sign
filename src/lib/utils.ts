@@ -13,6 +13,10 @@ export function formatDate(date: Date | string): string {
 
 export function formatRelativeDate(date: Date | string): string {
   const dateObj = typeof date === "string" ? new Date(date) : date
+  if (isNaN(dateObj.getTime())) return "Recently"
+  if (dateObj.getTime() > Date.now()) {
+    return "Just now"
+  }
   return formatDistanceToNow(dateObj, { addSuffix: true })
 }
 
