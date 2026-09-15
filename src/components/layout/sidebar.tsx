@@ -20,6 +20,7 @@ import {
   Sparkles,
   Building2,
   User as UserIcon,
+  Globe,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -44,6 +45,7 @@ const mainNavItems: NavItem[] = [
   { label: "Home", icon: LayoutDashboard, href: "/dashboard" },
   { label: "Documents", icon: FileText, href: "/dashboard/documents" },
   { label: "Templates", icon: Copy, href: "/dashboard/templates" },
+  { label: "Public Forms", icon: Globe, href: "/dashboard/public-forms" },
   { label: "Bulk Send", icon: Layers, href: "/dashboard/bulk-send" },
   { label: "Contacts", icon: Users, href: "/dashboard/contacts" },
 ]

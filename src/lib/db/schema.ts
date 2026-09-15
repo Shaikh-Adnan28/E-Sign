@@ -510,6 +510,96 @@ export const bulkSendRowsRelations = relations(bulkSendRows, ({ one }) => ({
   }),
 }));
 
+// Public Forms status enums
+export const publicFormStatusEnum = [
+  "DRAFT",
+  "ACTIVE",
+  "PAUSED",
+  "EXPIRED",
+  "ARCHIVED",
+] as const;
+
+export const publicSubmissionStatusEnum = [
+  "STARTED",
+  "PENDING",
+  "COMPLETED",
+  "DECLINED",
+  "EXPIRED",
+] as const;
+
+// Public Forms table
+export const publicForms = pgTable("public_forms", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ownerId: uuid("owner_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  templateId: uuid("template_id")
+    .references(() => templates.id, { onDelete: "cascade" })
+    .notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  token: text("token").notNull().unique(),
+  status: text("status", { enum: publicFormStatusEnum }).default("ACTIVE").notNull(),
+  confirmationMessage: text("confirmation_message"),
+  submissionsCount: integer("submissions_count").default(0).notNull(),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  ownerIdx: index("public_forms_owner_idx").on(table.ownerId),
+  templateIdx: index("public_forms_template_idx").on(table.templateId),
+  tokenIdx: uniqueIndex("public_forms_token_idx").on(table.token),
+  statusIdx: index("public_forms_status_idx").on(table.status),
+}));
+
+export type PublicForm = typeof publicForms.$inferSelect;
+export type NewPublicForm = typeof publicForms.$inferInsert;
+
+// Public Form Submissions table
+export const publicFormSubmissions = pgTable("public_form_submissions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  publicFormId: uuid("public_form_id")
+    .references(() => publicForms.id, { onDelete: "cascade" })
+    .notNull(),
+  envelopeId: uuid("envelope_id")
+    .references(() => envelopes.id, { onDelete: "set null" }),
+  status: text("status", { enum: publicSubmissionStatusEnum }).default("STARTED").notNull(),
+  submittedAt: timestamp("submitted_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  formIdx: index("public_form_submissions_form_idx").on(table.publicFormId),
+  envelopeIdx: index("public_form_submissions_envelope_idx").on(table.envelopeId),
+  statusIdx: index("public_form_submissions_status_idx").on(table.status),
+}));
+
+export type PublicFormSubmission = typeof publicFormSubmissions.$inferSelect;
+export type NewPublicFormSubmission = typeof publicFormSubmissions.$inferInsert;
+
+// Public Forms & Submissions Relations
+export const publicFormsRelations = relations(publicForms, ({ one, many }) => ({
+  owner: one(users, {
+    fields: [publicForms.ownerId],
+    references: [users.id],
+  }),
+  template: one(templates, {
+    fields: [publicForms.templateId],
+    references: [templates.id],
+  }),
+  submissions: many(publicFormSubmissions),
+}));
+
+export const publicFormSubmissionsRelations = relations(publicFormSubmissions, ({ one }) => ({
+  publicForm: one(publicForms, {
+    fields: [publicFormSubmissions.publicFormId],
+    references: [publicForms.id],
+  }),
+  envelope: one(envelopes, {
+    fields: [publicFormSubmissions.envelopeId],
+    references: [envelopes.id],
+  }),
+}));
+
 export const schemas = {
   users,
   organizations,
@@ -526,4 +616,6 @@ export const schemas = {
   templateFields,
   bulkSendBatches,
   bulkSendRows,
+  publicForms,
+  publicFormSubmissions,
 };
