@@ -164,6 +164,12 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   },
 
   async flushSave() {
+    const timer = get()._saveTimer;
+    if (timer) {
+      clearTimeout(timer);
+      set({ _saveTimer: null });
+    }
+
     const { documentId, fields } = get();
     if (!documentId) return;
 
@@ -224,18 +230,32 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         });
       }
 
-      // Update local state: assign real IDs, clear flags
-      set((state) => ({
-        saveStatus: "saved",
-        fields: state.fields
-          .filter((f) => !f._deleted)
+      // Update local state cleanly
+      let hasMoreDirty = false;
+      set((state) => {
+        const updatedFields = state.fields
+          .filter((f) => !f._deleted || !toDelete.some((d) => d.id === f.id))
           .map((f) => {
-            if (f._isNew && createdIds[f.id]) {
-              return { ...f, id: createdIds[f.id], _isNew: false, _dirty: false };
+            const createdRealId = createdIds[f.id];
+            if (f._isNew && createdRealId) {
+              return { ...f, id: createdRealId, _isNew: false };
             }
-            return { ...f, _dirty: false };
-          }),
-      }));
+            if (toUpdate.some((u) => u.id === f.id)) {
+              return { ...f, _dirty: false };
+            }
+            return f;
+          });
+
+        hasMoreDirty = updatedFields.some((f) => f._dirty || (f._isNew && !f._deleted));
+        return {
+          saveStatus: "saved",
+          fields: updatedFields,
+        };
+      });
+
+      if (hasMoreDirty) {
+        get().scheduleSave();
+      }
     } catch (err) {
       console.error("[EditorStore.flushSave]", err);
       set({ saveStatus: "error" });

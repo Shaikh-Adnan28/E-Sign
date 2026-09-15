@@ -6,7 +6,7 @@ import {
   signatureFields,
   auditEvents,
 } from "@/lib/db/schema";
-import { eq, and, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { stampSignedDocument } from "@/lib/pdf";
 
 export async function checkAndCompleteEnvelope(

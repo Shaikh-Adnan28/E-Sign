@@ -4,7 +4,6 @@ import React, {
   useEffect,
   useRef,
   useState,
-  useCallback,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
@@ -16,7 +15,6 @@ import {
   ChevronRight,
   ZoomIn,
   ZoomOut,
-  Save,
   Send,
   PenLine,
   Type,
@@ -57,13 +55,6 @@ interface EditorClientProps {
 }
 
 // Signer colors (cycling)
-const SIGNER_COLORS = [
-  "bg-blue-500 border-blue-600 text-blue-700 bg-blue-50",
-  "bg-purple-500 border-purple-600 text-purple-700 bg-purple-50",
-  "bg-emerald-500 border-emerald-600 text-emerald-700 bg-emerald-50",
-  "bg-orange-500 border-orange-600 text-orange-700 bg-orange-50",
-  "bg-pink-500 border-pink-600 text-pink-700 bg-pink-50",
-];
 const SIGNER_BORDER_COLORS = [
   "border-blue-400",
   "border-purple-400",
@@ -159,7 +150,10 @@ function FieldOverlay({
     (e.target as HTMLElement).releasePointerCapture(e.pointerId);
   }
 
-  const borderColor = SIGNER_BORDER_COLORS[signerIndex % SIGNER_BORDER_COLORS.length] ?? "border-blue-400";
+  const isAssigned = signerIndex >= 0;
+  const borderColor = isAssigned
+    ? (SIGNER_BORDER_COLORS[signerIndex % SIGNER_BORDER_COLORS.length] ?? "border-blue-400")
+    : "border-slate-400";
   const ft = FIELD_TYPES.find((f) => f.type === field.type);
 
   return (
@@ -170,14 +164,29 @@ function FieldOverlay({
     >
       {/* Main field body */}
       <div
-        className={`w-full h-full rounded border-2 ${isSelected ? borderColor + " shadow-md" : "border-dashed " + borderColor} bg-blue-50/60 flex items-center justify-center overflow-hidden cursor-move`}
+        className={`w-full h-full rounded border-2 ${
+          isSelected ? borderColor + " shadow-md" : "border-dashed " + borderColor
+        } ${isAssigned ? "bg-blue-50/60" : "bg-amber-50/60"} flex items-center justify-center overflow-hidden cursor-move`}
         onPointerDown={onPointerDownMove}
         onPointerMove={onPointerMoveMove}
         onPointerUp={onPointerUpMove}
       >
-        <span className="text-[10px] font-semibold text-slate-600 pointer-events-none select-none truncate px-1">
-          {ft?.icon && <span className="inline mr-0.5">{ft.icon}</span>}
-          {ft?.label}
+        <span className="text-[10px] font-semibold text-slate-800 pointer-events-none select-none truncate px-1 flex items-center gap-1">
+          {ft?.icon && <span className="inline-block shrink-0">{ft.icon}</span>}
+          <span className="truncate">{ft?.label}</span>
+          {isAssigned ? (
+            <span
+              className={`ml-0.5 text-[9px] font-bold px-1 py-0.2 rounded-full shrink-0 ${
+                SIGNER_BG_BADGE[signerIndex % SIGNER_BG_BADGE.length]
+              }`}
+            >
+              #{signerIndex + 1}
+            </span>
+          ) : (
+            <span className="ml-0.5 text-[9px] font-medium px-1 py-0.2 rounded bg-amber-100 text-amber-800 shrink-0">
+              Unassigned
+            </span>
+          )}
         </span>
       </div>
 
@@ -296,7 +305,7 @@ function PropertiesPanel({
 }) {
   if (!field) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center gap-2 px-4">
+      <div className="flex flex-col items-center justify-center h-full text-center gap-2 px-4 py-8">
         <FileText className="text-slate-300" size={32} />
         <p className="text-xs text-slate-400">Click a field on the canvas to edit its properties.</p>
       </div>
@@ -304,45 +313,75 @@ function PropertiesPanel({
   }
 
   const ft = FIELD_TYPES.find((f) => f.type === field.type);
+  const assignedSigner = signers.find((s) => s.id === field.signerId);
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      <div className="flex items-center gap-2">
-        <span className="text-slate-500">{ft?.icon}</span>
-        <h3 className="text-sm font-semibold text-slate-700">{ft?.label} Field</h3>
+      <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+        <span className="text-[#1A56DB] bg-blue-50 p-1.5 rounded-md">{ft?.icon}</span>
+        <div>
+          <h3 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider">{ft?.label} Field</h3>
+          <p className="text-[10px] text-slate-400">Configure recipient & settings</p>
+        </div>
       </div>
 
       {/* Assign to signer */}
-      <div className="flex flex-col gap-1">
-        <Label className="text-xs text-slate-500">Assigned to</Label>
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs font-semibold text-[#0F172A]">Assigned to</Label>
         <select
-          className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-blue-500"
+          className="w-full text-xs font-medium text-[#0F172A] bg-white border border-[#E2E8F0] hover:border-[#3F83F8] focus:border-[#1A56DB] focus:ring-2 focus:ring-[#1A56DB]/20 rounded-lg px-3 py-2 transition-colors cursor-pointer outline-none shadow-2xs"
           value={field.signerId ?? ""}
           onChange={(e) => onUpdate(field.id, { signerId: e.target.value || null })}
         >
-          <option value="">Unassigned</option>
+          <option value="" className="text-slate-500 font-normal">
+            Unassigned
+          </option>
           {signers.map((s, i) => (
-            <option key={s.id} value={s.id}>
-              {i + 1}. {s.name ?? s.email}
+            <option key={s.id} value={s.id} className="text-[#0F172A] font-medium py-1">
+              {i + 1}. {s.name ? `${s.name} (${s.email})` : s.email}
             </option>
           ))}
         </select>
+
+        {assignedSigner ? (
+          <div className="bg-[#EFF6FF] border border-blue-100 rounded-lg p-2.5 flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-[#1A56DB] shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-semibold text-[#1A56DB] truncate">
+                Assigned to {assignedSigner.name ?? assignedSigner.email}
+              </p>
+              {assignedSigner.name && (
+                <p className="text-[10px] text-blue-600/70 truncate">{assignedSigner.email}</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-amber-50 border border-amber-200/80 rounded-lg p-2.5 flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+            <p className="text-[11px] font-medium text-amber-800">
+              Unassigned — select a recipient from above so they can sign.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Required */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 pt-1">
         <input
           id="field-required"
           type="checkbox"
           checked={field.required}
           onChange={(e) => onUpdate(field.id, { required: e.target.checked })}
-          className="w-4 h-4 accent-blue-500"
+          className="w-4 h-4 rounded border-slate-300 text-[#1A56DB] focus:ring-[#1A56DB]/20 accent-[#1A56DB] cursor-pointer"
         />
-        <Label htmlFor="field-required" className="text-xs text-slate-600">Required</Label>
+        <Label htmlFor="field-required" className="text-xs font-medium text-[#0F172A] cursor-pointer select-none">
+          Required Field
+        </Label>
       </div>
 
       {/* Position info */}
-      <div className="bg-slate-50 rounded-lg p-2 text-[10px] text-slate-400 space-y-0.5">
+      <div className="bg-slate-50 rounded-lg p-2.5 text-[10px] text-slate-500 space-y-0.5 border border-slate-100">
+        <p className="font-semibold text-slate-700">Location</p>
         <p>Page {field.pageNumber}</p>
         <p>X: {(field.x * 100).toFixed(1)}% Y: {(field.y * 100).toFixed(1)}%</p>
         <p>W: {(field.width * 100).toFixed(1)}% H: {(field.height * 100).toFixed(1)}%</p>
@@ -351,7 +390,7 @@ function PropertiesPanel({
       <Button
         variant="destructive"
         size="sm"
-        className="h-8 text-xs gap-1.5"
+        className="h-8 text-xs gap-1.5 mt-2"
         onClick={() => onDelete(field.id)}
       >
         <Trash2 size={12} /> Delete field
@@ -375,7 +414,7 @@ export default function EditorClient({
   const {
     init, reset, currentPage, setPage, zoom, setZoom,
     fields, addField, updateField, deleteField, selectField,
-    selectedFieldId, saveStatus,
+    selectedFieldId, saveStatus, flushSave,
   } = useEditorStore();
 
   const [signers, setSigners] = useState<SignerInfo[]>(initialSigners);
@@ -425,10 +464,16 @@ export default function EditorClient({
     setSelectedTool(null);
   }
 
+  async function openSendModal() {
+    await flushSave();
+    setShowSendModal(true);
+  }
+
   async function handleSend() {
     setSending(true);
     setSendError("");
     try {
+      await flushSave();
       const res = await fetch(`/api/envelopes/${envelopeId}/send`, { method: "POST" });
       if (!res.ok) {
         const j = await res.json();
@@ -506,8 +551,8 @@ export default function EditorClient({
         {/* Send */}
         <Button
           size="sm"
-          className="h-8 gap-1.5 text-xs"
-          onClick={() => setShowSendModal(true)}
+          className="h-8 gap-1.5 text-xs bg-[#1A56DB] hover:bg-blue-700 text-white"
+          onClick={openSendModal}
         >
           <Send size={13} /> Send for Signature
         </Button>

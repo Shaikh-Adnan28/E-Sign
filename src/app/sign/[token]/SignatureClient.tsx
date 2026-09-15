@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -10,9 +10,6 @@ import {
   ChevronRight,
   PenLine,
   CheckSquare,
-  AlignLeft,
-  Calendar,
-  Type,
   ChevronDown,
   Loader2,
   X,
