@@ -537,60 +537,60 @@ export function DocumentDetailClient({ envelope }: { envelope: EnvelopeDetail })
               {reminderEnabled && (
                 <div className="grid grid-cols-2 gap-3 pl-2">
                   <div>
-                    <Label className="text-[11px] text-slate-600 font-semibold">First Reminder After (Days)</Label>
+                    <Label className="text-[11px] text-slate-800 font-bold">First Reminder After (Days)</Label>
                     <Input
                       type="number"
                       min={1}
                       max={30}
                       value={reminderFirstAfterDays}
                       onChange={(e) => setReminderFirstAfterDays(Number(e.target.value))}
-                      className="h-8 text-xs mt-1"
+                      className="h-8 text-xs font-bold text-[#0F172A] bg-white border-slate-300 mt-1"
                     />
                   </div>
                   <div>
-                    <Label className="text-[11px] text-slate-600 font-semibold">Repeat Every (Days)</Label>
+                    <Label className="text-[11px] text-slate-800 font-bold">Repeat Every (Days)</Label>
                     <Input
                       type="number"
                       min={1}
                       max={30}
                       value={reminderEveryDays}
                       onChange={(e) => setReminderEveryDays(Number(e.target.value))}
-                      className="h-8 text-xs mt-1"
+                      className="h-8 text-xs font-bold text-[#0F172A] bg-white border-slate-300 mt-1"
                     />
                   </div>
                   <div className="col-span-2">
-                    <Label className="text-[11px] text-slate-600 font-semibold">Custom Reminder Note (Optional)</Label>
+                    <Label className="text-[11px] text-slate-800 font-bold">Custom Reminder Note (Optional)</Label>
                     <Textarea
                       value={reminderMessage}
                       onChange={(e) => setReminderMessage(e.target.value)}
                       placeholder="Add a personal note to reminder emails..."
-                      className="h-16 text-xs mt-1"
+                      className="h-16 text-xs font-medium text-[#0F172A] bg-white border-slate-300 mt-1 placeholder:text-slate-400"
                     />
                   </div>
                 </div>
               )}
 
               <div className="pt-2 border-t border-slate-100 space-y-3">
-                <p className="font-bold text-slate-800">Expiration & Deadlines</p>
+                <p className="font-bold text-slate-900">Expiration & Deadlines</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label className="text-[11px] text-slate-600 font-semibold">Expiration Date</Label>
+                    <Label className="text-[11px] text-slate-800 font-bold">Expiration Date</Label>
                     <Input
                       type="date"
                       value={expiresAtInput}
                       onChange={(e) => setExpiresAtInput(e.target.value)}
-                      className="h-8 text-xs mt-1"
+                      className="h-8 text-xs font-bold text-[#0F172A] bg-white border-slate-300 mt-1"
                     />
                   </div>
                   <div>
-                    <Label className="text-[11px] text-slate-600 font-semibold">Warning Notice (Days Before)</Label>
+                    <Label className="text-[11px] text-slate-800 font-bold">Warning Notice (Days Before)</Label>
                     <Input
                       type="number"
                       min={1}
                       max={14}
                       value={expirationWarningDays}
                       onChange={(e) => setExpirationWarningDays(Number(e.target.value))}
-                      className="h-8 text-xs mt-1"
+                      className="h-8 text-xs font-bold text-[#0F172A] bg-white border-slate-300 mt-1"
                     />
                   </div>
                 </div>

@@ -32,6 +32,7 @@ import { useEditorStore, type LocalField, type FieldType } from "@/stores/editor
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RecipientPicker, type SelectedRecipient } from "@/components/contacts/RecipientPicker";
+import { cn } from "@/lib/utils";
 
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
@@ -767,80 +768,97 @@ export default function EditorClient({
               </div>
             </div>
 
-            {/* Reminders & Expiration Settings Collapsible Section */}
-            <div className="border border-slate-200 rounded-xl p-3 mb-4 space-y-3 bg-white text-xs">
+            {/* Reminders & Expiration Settings Section */}
+            <div className="border border-slate-200/80 rounded-xl p-3.5 mb-4 space-y-3.5 bg-slate-50/80 text-xs">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                  <Bell size={13} className="text-[#1A56DB]" /> Automatic Reminders
-                </span>
+                <label htmlFor="send-modal-auto-reminders-toggle" className="font-bold text-slate-900 flex items-center gap-1.5 text-xs cursor-pointer select-none">
+                  <Bell size={14} className="text-[#1A56DB]" /> Automatic Reminders
+                </label>
                 <input
+                  id="send-modal-auto-reminders-toggle"
                   type="checkbox"
                   checked={reminderEnabled}
                   onChange={(e) => setReminderEnabled(e.target.checked)}
-                  className="h-4 w-4 text-[#1A56DB] rounded border-slate-300"
+                  className="h-4 w-4 text-[#1A56DB] rounded border-slate-300 focus:ring-[#1A56DB] cursor-pointer"
                 />
               </div>
 
-              {reminderEnabled && (
-                <div className="space-y-2 pt-1 border-t border-slate-100">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[10px] text-slate-500 font-semibold block">First after (Days)</label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={30}
-                        value={reminderFirstAfterDays}
-                        onChange={(e) => setReminderFirstAfterDays(Number(e.target.value))}
-                        className="w-full h-7 px-2 border rounded text-xs mt-0.5"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-slate-500 font-semibold block">Repeat every (Days)</label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={30}
-                        value={reminderEveryDays}
-                        onChange={(e) => setReminderEveryDays(Number(e.target.value))}
-                        className="w-full h-7 px-2 border rounded text-xs mt-0.5"
-                      />
-                    </div>
+              <div className="space-y-2.5 pt-2 border-t border-slate-200/80">
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label htmlFor="send-modal-first-after-days" className={cn("text-[11px] font-bold block mb-1 transition-colors", reminderEnabled ? "text-slate-800" : "text-slate-400")}>
+                      First after (Days)
+                    </label>
+                    <input
+                      id="send-modal-first-after-days"
+                      type="number"
+                      min={1}
+                      max={30}
+                      disabled={!reminderEnabled}
+                      value={reminderFirstAfterDays}
+                      onChange={(e) => setReminderFirstAfterDays(Number(e.target.value))}
+                      className="w-full h-8 px-2.5 bg-white text-slate-900 font-bold border border-slate-300 rounded-lg text-xs placeholder:text-slate-400 focus:outline-none focus:border-[#1A56DB] focus:ring-1 focus:ring-[#1A56DB] disabled:bg-slate-100 disabled:text-slate-400 disabled:border-slate-200 disabled:cursor-not-allowed shadow-2xs"
+                    />
                   </div>
                   <div>
-                    <label className="text-[10px] text-slate-500 font-semibold block">Reminder Note (Optional)</label>
+                    <label htmlFor="send-modal-repeat-every-days" className={cn("text-[11px] font-bold block mb-1 transition-colors", reminderEnabled ? "text-slate-800" : "text-slate-400")}>
+                      Repeat every (Days)
+                    </label>
                     <input
-                      type="text"
-                      placeholder="Custom reminder note..."
-                      value={reminderMessage}
-                      onChange={(e) => setReminderMessage(e.target.value)}
-                      className="w-full h-7 px-2 border rounded text-xs mt-0.5"
+                      id="send-modal-repeat-every-days"
+                      type="number"
+                      min={1}
+                      max={30}
+                      disabled={!reminderEnabled}
+                      value={reminderEveryDays}
+                      onChange={(e) => setReminderEveryDays(Number(e.target.value))}
+                      className="w-full h-8 px-2.5 bg-white text-slate-900 font-bold border border-slate-300 rounded-lg text-xs placeholder:text-slate-400 focus:outline-none focus:border-[#1A56DB] focus:ring-1 focus:ring-[#1A56DB] disabled:bg-slate-100 disabled:text-slate-400 disabled:border-slate-200 disabled:cursor-not-allowed shadow-2xs"
                     />
                   </div>
                 </div>
-              )}
-
-              <div className="pt-2 border-t border-slate-100 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-slate-700">Expires in (Days)</span>
+                <div>
+                  <label htmlFor="send-modal-reminder-note" className={cn("text-[11px] font-bold block mb-1 transition-colors", reminderEnabled ? "text-slate-800" : "text-slate-400")}>
+                    Reminder Note (Optional)
+                  </label>
                   <input
+                    id="send-modal-reminder-note"
+                    type="text"
+                    disabled={!reminderEnabled}
+                    placeholder="Custom reminder note..."
+                    value={reminderMessage}
+                    onChange={(e) => setReminderMessage(e.target.value)}
+                    className="w-full h-8 px-2.5 bg-white text-slate-900 font-medium border border-slate-300 rounded-lg text-xs placeholder:text-slate-400 focus:outline-none focus:border-[#1A56DB] focus:ring-1 focus:ring-[#1A56DB] disabled:bg-slate-100 disabled:text-slate-400 disabled:border-slate-200 disabled:cursor-not-allowed shadow-2xs"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2.5 border-t border-slate-200/80 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <label htmlFor="send-modal-expires-in-days" className="text-xs font-bold text-slate-800">
+                    Expires in (Days)
+                  </label>
+                  <input
+                    id="send-modal-expires-in-days"
                     type="number"
                     min={1}
                     max={365}
                     value={expirationDays}
                     onChange={(e) => setExpirationDays(Number(e.target.value))}
-                    className="w-20 h-7 px-2 border rounded text-xs text-right font-medium"
+                    className="w-20 h-8 px-2.5 bg-white text-slate-900 font-bold border border-slate-300 rounded-lg text-xs text-right focus:outline-none focus:border-[#1A56DB] focus:ring-1 focus:ring-[#1A56DB] shadow-2xs"
                   />
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-slate-500 font-semibold">Warning Notice (Days Before)</span>
+                <div className="flex items-center justify-between gap-2">
+                  <label htmlFor="send-modal-warning-notice-days" className="text-[11px] font-bold text-slate-700">
+                    Warning Notice (Days Before)
+                  </label>
                   <input
+                    id="send-modal-warning-notice-days"
                     type="number"
                     min={1}
                     max={14}
                     value={expirationWarningDays}
                     onChange={(e) => setExpirationWarningDays(Number(e.target.value))}
-                    className="w-20 h-7 px-2 border rounded text-xs text-right font-medium"
+                    className="w-20 h-8 px-2.5 bg-white text-slate-900 font-bold border border-slate-300 rounded-lg text-xs text-right focus:outline-none focus:border-[#1A56DB] focus:ring-1 focus:ring-[#1A56DB] shadow-2xs"
                   />
                 </div>
               </div>
