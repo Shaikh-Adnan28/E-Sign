@@ -102,19 +102,175 @@ export async function sendSigningEmail({
     subject: `Action required: Please sign "${documentTitle}"`,
     html: `<!DOCTYPE html>
 <html>
-<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1e293b">
-  <h2 style="margin-bottom:8px">You have a document to sign</h2>
-  <p><strong>${senderName}</strong> has requested your signature on <em>&ldquo;${documentTitle}&rdquo;</em>.</p>
-  <p>Hi ${signerName},</p>
-  <a href="${signingUrl}" style="display:inline-block;margin:20px 0;padding:14px 28px;background:#2563eb;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;font-size:15px">
-    Review &amp; Sign Document &rarr;
-  </a>
-  <p style="color:#64748b;font-size:13px">Or paste this URL in your browser:<br/>
-    <span style="word-break:break-all;color:#2563eb">${signingUrl}</span>
-  </p>
-  <hr style="border:none;border-top:1px solid #e2e8f0;margin:28px 0"/>
-  <p style="color:#94a3b8;font-size:12px">This request was sent via ESign · Secure Document Signing.<br/>
-  If you were not expecting this, you can safely ignore this email.</p>
+<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#0F172A">
+  <div style="background:#1A56DB;color:#fff;padding:16px 24px;border-radius:12px 12px 0 0;font-weight:bold;font-size:18px">ESign</div>
+  <div style="border:1px solid #E2E8F0;border-top:none;padding:24px;border-radius:0 0 12px 12px">
+    <h2 style="margin-top:0;color:#0F172A">You have a document to sign</h2>
+    <p><strong>${senderName}</strong> has requested your signature on <em>&ldquo;${documentTitle}&rdquo;</em>.</p>
+    <p>Hi ${signerName},</p>
+    <a href="${signingUrl}" style="display:inline-block;margin:16px 0;padding:12px 24px;background:#1A56DB;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px">
+      Review &amp; Sign Document &rarr;
+    </a>
+    <p style="color:#64748B;font-size:12px">Or copy this link into your browser:<br/><span style="word-break:break-all;color:#1A56DB">${signingUrl}</span></p>
+  </div>
+</body>
+</html>`,
+  });
+}
+
+export async function sendReminderEmail({
+  to,
+  signerName,
+  senderName,
+  documentTitle,
+  token,
+  customMessage,
+}: {
+  to: string;
+  signerName: string;
+  senderName: string;
+  documentTitle: string;
+  token: string;
+  customMessage?: string | null;
+}) {
+  const appUrl = process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const signingUrl = `${appUrl}/sign/${token}`;
+  await emailService.send({
+    to,
+    subject: `Reminder: Signature requested for "${documentTitle}"`,
+    html: `<!DOCTYPE html>
+<html>
+<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#0F172A">
+  <div style="background:#1A56DB;color:#fff;padding:16px 24px;border-radius:12px 12px 0 0;font-weight:bold;font-size:18px">ESign Reminder</div>
+  <div style="border:1px solid #E2E8F0;border-top:none;padding:24px;border-radius:0 0 12px 12px">
+    <p>Hi <strong>${signerName}</strong>,</p>
+    <p>This is a friendly reminder from <strong>${senderName}</strong> regarding your pending signature on <em>&ldquo;${documentTitle}&rdquo;</em>.</p>
+    ${customMessage ? `<blockquote style="background:#EFF6FF;border-left:4px solid #1A56DB;margin:16px 0;padding:12px 16px;color:#1E3A8A;font-style:italic">&ldquo;${customMessage}&rdquo;</blockquote>` : ""}
+    <a href="${signingUrl}" style="display:inline-block;margin:16px 0;padding:12px 24px;background:#1A56DB;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px">
+      Sign Document Now &rarr;
+    </a>
+  </div>
+</body>
+</html>`,
+  });
+}
+
+export async function sendExpirationWarningEmail({
+  to,
+  signerName,
+  senderName,
+  documentTitle,
+  token,
+  daysRemaining,
+  expiresAt,
+}: {
+  to: string;
+  signerName: string;
+  senderName: string;
+  documentTitle: string;
+  token: string;
+  daysRemaining: number;
+  expiresAt: Date;
+}) {
+  const appUrl = process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const signingUrl = `${appUrl}/sign/${token}`;
+  const dateStr = expiresAt.toLocaleDateString(undefined, { dateStyle: "medium" });
+  await emailService.send({
+    to,
+    subject: `Action Required: Signature request for "${documentTitle}" expires in ${daysRemaining} day${daysRemaining === 1 ? "" : "s"}`,
+    html: `<!DOCTYPE html>
+<html>
+<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#0F172A">
+  <div style="background:#E11D48;color:#fff;padding:16px 24px;border-radius:12px 12px 0 0;font-weight:bold;font-size:18px">Expiration Warning</div>
+  <div style="border:1px solid #E2E8F0;border-top:none;padding:24px;border-radius:0 0 12px 12px">
+    <p>Hi <strong>${signerName}</strong>,</p>
+    <p>The signature request for <em>&ldquo;${documentTitle}&rdquo;</em> sent by <strong>${senderName}</strong> will expire on <strong>${dateStr}</strong> (${daysRemaining} day${daysRemaining === 1 ? "" : "s"} remaining).</p>
+    <a href="${signingUrl}" style="display:inline-block;margin:16px 0;padding:12px 24px;background:#E11D48;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px">
+      Sign Before Expiration &rarr;
+    </a>
+  </div>
+</body>
+</html>`,
+  });
+}
+
+export async function sendEnvelopeExpiredEmail({
+  to,
+  name,
+  documentTitle,
+  isSender = false,
+}: {
+  to: string;
+  name: string;
+  documentTitle: string;
+  isSender?: boolean;
+}) {
+  await emailService.send({
+    to,
+    subject: `Document Expired: "${documentTitle}"`,
+    html: `<!DOCTYPE html>
+<html>
+<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#0F172A">
+  <div style="background:#475569;color:#fff;padding:16px 24px;border-radius:12px 12px 0 0;font-weight:bold;font-size:18px">Signature Request Expired</div>
+  <div style="border:1px solid #E2E8F0;border-top:none;padding:24px;border-radius:0 0 12px 12px">
+    <p>Hi <strong>${name}</strong>,</p>
+    <p>${isSender ? `The signature request for <em>&ldquo;${documentTitle}&rdquo;</em> has expired because the deadline was reached.` : `The signature request for <em>&ldquo;${documentTitle}&rdquo;</em> has expired and is no longer available for signing.`}</p>
+  </div>
+</body>
+</html>`,
+  });
+}
+
+export async function sendEnvelopeCompletedEmail({
+  to,
+  name,
+  documentTitle,
+}: {
+  to: string;
+  name: string;
+  documentTitle: string;
+}) {
+  await emailService.send({
+    to,
+    subject: `Completed: "${documentTitle}" has been signed`,
+    html: `<!DOCTYPE html>
+<html>
+<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#0F172A">
+  <div style="background:#059669;color:#fff;padding:16px 24px;border-radius:12px 12px 0 0;font-weight:bold;font-size:18px">Document Completed</div>
+  <div style="border:1px solid #E2E8F0;border-top:none;padding:24px;border-radius:0 0 12px 12px">
+    <p>Hi <strong>${name}</strong>,</p>
+    <p>All signers have completed signing <em>&ldquo;${documentTitle}&rdquo;</em>. The completed document is now stored securely in your dashboard.</p>
+  </div>
+</body>
+</html>`,
+  });
+}
+
+export async function sendEnvelopeDeclinedEmail({
+  to,
+  senderName,
+  declinedByName,
+  documentTitle,
+  reason,
+}: {
+  to: string;
+  senderName: string;
+  declinedByName: string;
+  documentTitle: string;
+  reason?: string;
+}) {
+  await emailService.send({
+    to,
+    subject: `Declined: "${documentTitle}" was declined`,
+    html: `<!DOCTYPE html>
+<html>
+<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#0F172A">
+  <div style="background:#DC2626;color:#fff;padding:16px 24px;border-radius:12px 12px 0 0;font-weight:bold;font-size:18px">Signing Declined</div>
+  <div style="border:1px solid #E2E8F0;border-top:none;padding:24px;border-radius:0 0 12px 12px">
+    <p>Hi <strong>${senderName}</strong>,</p>
+    <p><strong>${declinedByName}</strong> declined to sign <em>&ldquo;${documentTitle}&rdquo;</em>.</p>
+    ${reason ? `<p style="background:#FEF2F2;border-left:4px solid #DC2626;padding:10px 14px;color:#991B1B">Reason: &ldquo;${reason}&rdquo;</p>` : ""}
+  </div>
 </body>
 </html>`,
   });

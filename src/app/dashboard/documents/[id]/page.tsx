@@ -12,6 +12,13 @@ export interface EnvelopeDetail {
   status: string
   message: string | null
   expiresAt: Date | null
+  reminderEnabled: boolean
+  reminderFirstAfterDays: number | null
+  reminderEveryDays: number | null
+  reminderMessage: string | null
+  nextReminderAt: Date | null
+  lastReminderAt: Date | null
+  expirationWarningDays: number | null
   createdAt: Date | null
   updatedAt: Date | null
   documents: {
@@ -69,6 +76,13 @@ export default async function DocumentDetailPage({
           status: mockItem.status,
           message: "Please sign this agreement.",
           expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
+          reminderEnabled: true,
+          reminderFirstAfterDays: 2,
+          reminderEveryDays: 3,
+          reminderMessage: null,
+          nextReminderAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 2),
+          lastReminderAt: null,
+          expirationWarningDays: 3,
           createdAt: mockItem.createdAt,
           updatedAt: mockItem.createdAt,
           documents: [
@@ -120,6 +134,13 @@ export default async function DocumentDetailPage({
         status: envelope.status,
         message: envelope.message ?? null,
         expiresAt: envelope.expiresAt ?? null,
+        reminderEnabled: envelope.reminderEnabled ?? false,
+        reminderFirstAfterDays: envelope.reminderFirstAfterDays ?? 2,
+        reminderEveryDays: envelope.reminderEveryDays ?? 3,
+        reminderMessage: envelope.reminderMessage ?? null,
+        nextReminderAt: envelope.nextReminderAt ?? null,
+        lastReminderAt: envelope.lastReminderAt ?? null,
+        expirationWarningDays: envelope.expirationWarningDays ?? 3,
         createdAt: envelope.createdAt ?? null,
         updatedAt: envelope.updatedAt ?? null,
         documents: envelopeDocuments.map((d) => ({

@@ -75,11 +75,21 @@ export const envelopes = pgTable("envelopes", {
   status: text("status", { enum: envelopeStatusEnum }).notNull().default("DRAFT"),
   message: text("message"),
   expiresAt: timestamp("expires_at"),
+  reminderEnabled: boolean("reminder_enabled").default(false).notNull(),
+  reminderFirstAfterDays: integer("reminder_first_after_days").default(3).notNull(),
+  reminderEveryDays: integer("reminder_every_days").default(3).notNull(),
+  reminderMessage: text("reminder_message"),
+  nextReminderAt: timestamp("next_reminder_at"),
+  lastReminderAt: timestamp("last_reminder_at"),
+  expirationWarningDays: integer("expiration_warning_days").default(5),
+  expirationWarningSentAt: timestamp("expiration_warning_sent_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
   ownerIdx: index("envelopes_owner_idx").on(table.ownerId),
   statusIdx: index("envelopes_status_idx").on(table.status),
+  nextReminderIdx: index("envelopes_next_reminder_idx").on(table.nextReminderAt),
+  expiresAtIdx: index("envelopes_expires_at_idx").on(table.expiresAt),
 }));
 
 export type Envelope = typeof envelopes.$inferSelect;

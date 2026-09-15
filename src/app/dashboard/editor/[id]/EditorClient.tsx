@@ -26,6 +26,7 @@ import {
   FileText,
   X,
   Loader2,
+  Bell,
 } from "lucide-react";
 import { useEditorStore, type LocalField, type FieldType } from "@/stores/editor-store";
 import { Button } from "@/components/ui/button";
@@ -446,6 +447,12 @@ export default function EditorClient({
   const [sending, setSending] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
   const [sendError, setSendError] = useState("");
+  const [reminderEnabled, setReminderEnabled] = useState(true);
+  const [reminderFirstAfterDays, setReminderFirstAfterDays] = useState(2);
+  const [reminderEveryDays, setReminderEveryDays] = useState(3);
+  const [reminderMessage, setReminderMessage] = useState("");
+  const [expirationDays, setExpirationDays] = useState(7);
+  const [expirationWarningDays, setExpirationWarningDays] = useState(3);
 
   useEffect(() => {
     init({ documentId, envelopeId, pageCount, initialFields });
@@ -499,7 +506,18 @@ export default function EditorClient({
     setSendError("");
     try {
       await flushSave();
-      const res = await fetch(`/api/envelopes/${envelopeId}/send`, { method: "POST" });
+      const res = await fetch(`/api/envelopes/${envelopeId}/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reminderEnabled,
+          reminderFirstAfterDays: Number(reminderFirstAfterDays),
+          reminderEveryDays: Number(reminderEveryDays),
+          reminderMessage: reminderMessage.trim() || null,
+          expirationDays: Number(expirationDays),
+          expirationWarningDays: Number(expirationWarningDays),
+        }),
+      });
       if (!res.ok) {
         const j = await res.json();
         setSendError(j.error ?? "Failed to send");
@@ -746,6 +764,85 @@ export default function EditorClient({
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">Fields</span>
                 <span className="font-medium text-slate-800">{fields.filter((f) => !f._deleted).length}</span>
+              </div>
+            </div>
+
+            {/* Reminders & Expiration Settings Collapsible Section */}
+            <div className="border border-slate-200 rounded-xl p-3 mb-4 space-y-3 bg-white text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                  <Bell size={13} className="text-[#1A56DB]" /> Automatic Reminders
+                </span>
+                <input
+                  type="checkbox"
+                  checked={reminderEnabled}
+                  onChange={(e) => setReminderEnabled(e.target.checked)}
+                  className="h-4 w-4 text-[#1A56DB] rounded border-slate-300"
+                />
+              </div>
+
+              {reminderEnabled && (
+                <div className="space-y-2 pt-1 border-t border-slate-100">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-slate-500 font-semibold block">First after (Days)</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={30}
+                        value={reminderFirstAfterDays}
+                        onChange={(e) => setReminderFirstAfterDays(Number(e.target.value))}
+                        className="w-full h-7 px-2 border rounded text-xs mt-0.5"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-500 font-semibold block">Repeat every (Days)</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={30}
+                        value={reminderEveryDays}
+                        onChange={(e) => setReminderEveryDays(Number(e.target.value))}
+                        className="w-full h-7 px-2 border rounded text-xs mt-0.5"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-semibold block">Reminder Note (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="Custom reminder note..."
+                      value={reminderMessage}
+                      onChange={(e) => setReminderMessage(e.target.value)}
+                      className="w-full h-7 px-2 border rounded text-xs mt-0.5"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-700">Expires in (Days)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={expirationDays}
+                    onChange={(e) => setExpirationDays(Number(e.target.value))}
+                    className="w-20 h-7 px-2 border rounded text-xs text-right font-medium"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-500 font-semibold">Warning Notice (Days Before)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={14}
+                    value={expirationWarningDays}
+                    onChange={(e) => setExpirationWarningDays(Number(e.target.value))}
+                    className="w-20 h-7 px-2 border rounded text-xs text-right font-medium"
+                  />
+                </div>
               </div>
             </div>
 

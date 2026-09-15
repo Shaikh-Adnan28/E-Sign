@@ -43,6 +43,13 @@ export async function GET(
       return NextResponse.json({ error: "Invalid signing link" }, { status: 404 });
 
     const { signer, envelope } = row;
+    const now = new Date();
+
+    if (envelope.status === "EXPIRED" || (envelope.expiresAt && envelope.expiresAt <= now))
+      return NextResponse.json(
+        { error: "This document has expired and is no longer available for signing", isExpired: true },
+        { status: 410 }
+      );
 
     if (!["SENT", "DELIVERED", "VIEWED", "PARTIALLY_SIGNED"].includes(envelope.status))
       return NextResponse.json(

@@ -5,8 +5,18 @@ import { auth } from "@/lib/auth";
 import { eq, and } from "drizzle-orm";
 import { sendSigningEmail } from "@/lib/email";
 
+interface SendRequestBody {
+  reminderEnabled?: boolean;
+  reminderFirstAfterDays?: number;
+  reminderEveryDays?: number;
+  reminderMessage?: string | null;
+  expirationDays?: number;
+  expirationWarningDays?: number;
+  expiresAt?: string;
+}
+
 export async function POST(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -15,6 +25,13 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { id } = await params;
+
+    let body: SendRequestBody = {};
+    try {
+      body = (await req.json()) as SendRequestBody;
+    } catch {
+      // Body is optional
+    }
 
     // Verify ownership
     const [envelope] = await db
@@ -55,10 +72,39 @@ export async function POST(
         { status: 422 }
       );
 
-    // Atomic update to SENT state (prevents concurrent/double-click duplicate sends)
+    const now = new Date();
+    const reminderEnabled = body.reminderEnabled ?? envelope.reminderEnabled ?? false;
+    const reminderFirstAfterDays = body.reminderFirstAfterDays ?? envelope.reminderFirstAfterDays ?? 2;
+    const reminderEveryDays = body.reminderEveryDays ?? envelope.reminderEveryDays ?? 3;
+    const reminderMessage = body.reminderMessage !== undefined ? body.reminderMessage : envelope.reminderMessage;
+    const expirationWarningDays = body.expirationWarningDays ?? envelope.expirationWarningDays ?? 3;
+
+    let expiresAt: Date | null = envelope.expiresAt;
+    if (body.expiresAt) {
+      expiresAt = new Date(body.expiresAt);
+    } else if (typeof body.expirationDays === "number") {
+      expiresAt = new Date(now.getTime() + body.expirationDays * 24 * 60 * 60 * 1000);
+    }
+
+    let nextReminderAt: Date | null = null;
+    if (reminderEnabled) {
+      nextReminderAt = new Date(now.getTime() + reminderFirstAfterDays * 24 * 60 * 60 * 1000);
+    }
+
+    // Atomic update to SENT state
     const [updatedEnvelope] = await db
       .update(envelopes)
-      .set({ status: "SENT", updatedAt: new Date() })
+      .set({
+        status: "SENT",
+        reminderEnabled,
+        reminderFirstAfterDays,
+        reminderEveryDays,
+        reminderMessage,
+        nextReminderAt,
+        expiresAt,
+        expirationWarningDays,
+        updatedAt: now,
+      })
       .where(and(eq(envelopes.id, id), eq(envelopes.ownerId, session.user.id), eq(envelopes.status, "DRAFT")))
       .returning();
 
@@ -68,7 +114,7 @@ export async function POST(
         { status: 409 }
       );
 
-    // Sequential signing activation: find minimum order among signers
+    // Sequential signing activation
     const orders = envelopeSigners.map((s) => s.order ?? 1);
     const minOrder = Math.min(...orders);
 
@@ -95,15 +141,17 @@ export async function POST(
       envelopeId: id,
       event: "DOCUMENT_SENT",
       actor: session.user.email ?? session.user.id,
-      meta: { recipientCount: envelopeSigners.length, activeInitialCount: activeSigners.length },
+      meta: {
+        recipientCount: envelopeSigners.length,
+        activeInitialCount: activeSigners.length,
+        reminderEnabled,
+        expiresAt: expiresAt?.toISOString(),
+      },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, envelope: updatedEnvelope });
   } catch (err) {
     console.error("[POST /api/envelopes/[id]/send]", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
-
-
-

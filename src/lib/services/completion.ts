@@ -5,22 +5,30 @@ import {
   documents,
   signatureFields,
   auditEvents,
+  users,
 } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { stampSignedDocument } from "@/lib/pdf";
-
-import { sendSigningEmail } from "@/lib/email";
+import {
+  sendSigningEmail,
+  sendEnvelopeCompletedEmail,
+  sendEnvelopeDeclinedEmail,
+} from "@/lib/email";
 
 export async function checkAndCompleteEnvelope(
   envelopeId: string
 ): Promise<void> {
-  const [envelope] = await db
-    .select()
+  const [envelopeRecord] = await db
+    .select({ envelope: envelopes, owner: users })
     .from(envelopes)
+    .innerJoin(users, eq(envelopes.ownerId, users.id))
     .where(eq(envelopes.id, envelopeId))
     .limit(1);
 
-  if (!envelope) return;
+  if (!envelopeRecord) return;
+
+  const envelope = envelopeRecord.envelope;
+  const owner = envelopeRecord.owner;
 
   const allSigners = await db
     .select()
@@ -31,16 +39,36 @@ export async function checkAndCompleteEnvelope(
   if (allSigners.length === 0) return;
 
   // 1. Decline check
-  const hasDeclined = allSigners.some((s) => s.status === "DECLINED");
-  if (hasDeclined) {
+  const declinedSigner = allSigners.find((s) => s.status === "DECLINED");
+  if (declinedSigner) {
     await db
       .update(envelopes)
-      .set({ status: "DECLINED", updatedAt: new Date() })
+      .set({
+        status: "DECLINED",
+        nextReminderAt: null,
+        updatedAt: new Date(),
+      })
       .where(eq(envelopes.id, envelopeId));
+
     await db.insert(auditEvents).values({
       envelopeId,
       event: "DOCUMENT_DECLINED",
+      actor: declinedSigner.email,
+      meta: { signerEmail: declinedSigner.email },
     });
+
+    // Notify sender of decline
+    try {
+      await sendEnvelopeDeclinedEmail({
+        to: owner.email,
+        senderName: owner.name ?? owner.email,
+        declinedByName: declinedSigner.name ?? declinedSigner.email,
+        documentTitle: envelope.title,
+      });
+    } catch (err) {
+      console.error("[completion] sendEnvelopeDeclinedEmail error:", err);
+    }
+
     return;
   }
 
@@ -81,7 +109,11 @@ export async function checkAndCompleteEnvelope(
 
     await db
       .update(envelopes)
-      .set({ status: "COMPLETED", updatedAt: new Date() })
+      .set({
+        status: "COMPLETED",
+        nextReminderAt: null,
+        updatedAt: new Date(),
+      })
       .where(eq(envelopes.id, envelopeId));
 
     await db.insert(auditEvents).values({
@@ -89,6 +121,30 @@ export async function checkAndCompleteEnvelope(
       event: "DOCUMENT_COMPLETED",
       meta: { signerCount: allSigners.length },
     });
+
+    // Send completion emails to owner and all signers
+    try {
+      // Owner
+      await sendEnvelopeCompletedEmail({
+        to: owner.email,
+        name: owner.name ?? owner.email,
+        documentTitle: envelope.title,
+      });
+
+      // Signers
+      for (const signer of allSigners) {
+        if (signer.email !== owner.email) {
+          await sendEnvelopeCompletedEmail({
+            to: signer.email,
+            name: signer.name ?? signer.email,
+            documentTitle: envelope.title,
+          });
+        }
+      }
+    } catch (err) {
+      console.error("[completion] sendEnvelopeCompletedEmail error:", err);
+    }
+
     return;
   }
 
@@ -132,7 +188,7 @@ export async function checkAndCompleteEnvelope(
         await sendSigningEmail({
           to: signer.email,
           signerName: signer.name ?? signer.email,
-          senderName: "ESign Sender",
+          senderName: owner.name ?? owner.email,
           documentTitle: envelope.title,
           token: signer.token,
         });
@@ -140,4 +196,3 @@ export async function checkAndCompleteEnvelope(
     }
   }
 }
-

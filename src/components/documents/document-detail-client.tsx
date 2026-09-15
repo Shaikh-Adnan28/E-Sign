@@ -17,11 +17,17 @@ import {
   Send,
   Check,
   ShieldCheck,
+  Settings,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { StatusBadge, StatusType } from "@/components/documents/status-badge"
 import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 import { formatDate, formatRelativeDate, getInitials, cn } from "@/lib/utils"
+import type { EnvelopeDetail } from "@/app/dashboard/documents/[id]/page"
 
 const TIMELINE_STEPS = [
   { key: "CREATED", label: "Created", icon: FileText },
@@ -111,11 +117,28 @@ function StatusTimeline({
   )
 }
 
-import type { EnvelopeDetail } from "@/app/dashboard/documents/[id]/page"
-
-// Component definition
 export function DocumentDetailClient({ envelope }: { envelope: EnvelopeDetail }) {
   const router = useRouter()
+  const [sendingReminder, setSendingReminder] = useState(false)
+  const [reminderNotification, setReminderNotification] = useState<string | null>(null)
+  const [showConfigModal, setShowConfigModal] = useState(false)
+  const [savingConfig, setSavingConfig] = useState(false)
+  const [configError, setConfigError] = useState("")
+
+  // Form state for config modal
+  const [reminderEnabled, setReminderEnabled] = useState(envelope.reminderEnabled)
+  const [reminderFirstAfterDays, setReminderFirstAfterDays] = useState(
+    envelope.reminderFirstAfterDays ?? 2
+  )
+  const [reminderEveryDays, setReminderEveryDays] = useState(envelope.reminderEveryDays ?? 3)
+  const [reminderMessage, setReminderMessage] = useState(envelope.reminderMessage ?? "")
+  const [expirationWarningDays, setExpirationWarningDays] = useState(
+    envelope.expirationWarningDays ?? 3
+  )
+  const [expiresAtInput, setExpiresAtInput] = useState(
+    envelope.expiresAt ? new Date(envelope.expiresAt).toISOString().slice(0, 10) : ""
+  )
+
   const [confirmState, setConfirmState] = useState<{
     open: boolean
     title: string
@@ -127,6 +150,7 @@ export function DocumentDetailClient({ envelope }: { envelope: EnvelopeDetail })
   const isDraft = envelope.status === "DRAFT"
   const isSent = ["SENT", "DELIVERED", "VIEWED", "PARTIALLY_SIGNED"].includes(envelope.status)
   const isCompleted = envelope.status === "COMPLETED"
+  const isTerminal = ["COMPLETED", "DECLINED", "EXPIRED", "CANCELLED"].includes(envelope.status)
 
   const openConfirm = (
     title: string,
@@ -160,6 +184,61 @@ export function DocumentDetailClient({ envelope }: { envelope: EnvelopeDetail })
       },
       true
     )
+
+  const handleSendReminderNow = async () => {
+    setSendingReminder(true)
+    setReminderNotification(null)
+    try {
+      const res = await fetch(`/api/envelopes/${envelope.id}/reminders`, {
+        method: "POST",
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setReminderNotification(`Error: ${data.error || "Failed to send reminder"}`)
+      } else {
+        setReminderNotification(
+          `Reminder sent successfully to ${data.count} pending recipient${data.count === 1 ? "" : "s"}.`
+        )
+        router.refresh()
+      }
+    } catch {
+      setReminderNotification("Failed to send reminder email.")
+    } finally {
+      setSendingReminder(false)
+    }
+  }
+
+  const handleSaveConfig = async () => {
+    setSavingConfig(true)
+    setConfigError("")
+    try {
+      const res = await fetch(`/api/envelopes/${envelope.id}/expiration`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reminderEnabled,
+          reminderFirstAfterDays: Number(reminderFirstAfterDays),
+          reminderEveryDays: Number(reminderEveryDays),
+          reminderMessage: reminderMessage.trim() || null,
+          expirationWarningDays: Number(expirationWarningDays),
+          expiresAt: expiresAtInput ? new Date(expiresAtInput).toISOString() : null,
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        setConfigError(data.error || "Failed to update configuration")
+        return
+      }
+
+      setShowConfigModal(false)
+      router.refresh()
+    } catch {
+      setConfigError("An error occurred while saving settings.")
+    } finally {
+      setSavingConfig(false)
+    }
+  }
 
   const firstDocument = envelope.documents?.[0]
 
@@ -239,6 +318,64 @@ export function DocumentDetailClient({ envelope }: { envelope: EnvelopeDetail })
             </div>
           </div>
 
+          {/* Reminders & Expiration Status Card */}
+          <div className="bg-white rounded-xl border border-slate-200/80 p-5 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-[#1A56DB]" /> Reminders & Expiration
+              </h3>
+              {!isTerminal && (
+                <button
+                  onClick={() => setShowConfigModal(true)}
+                  className="text-[11px] font-medium text-[#1A56DB] hover:underline flex items-center gap-1"
+                >
+                  <Settings className="h-3 w-3" /> Edit
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between items-center p-2 rounded-lg bg-slate-50 border border-slate-100">
+                <span className="text-slate-500 font-medium">Auto-Reminders</span>
+                <span
+                  className={cn(
+                    "font-semibold px-2 py-0.5 rounded text-[10px]",
+                    envelope.reminderEnabled
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-slate-200 text-slate-600"
+                  )}
+                >
+                  {envelope.reminderEnabled ? "Enabled" : "Disabled"}
+                </span>
+              </div>
+
+              {envelope.reminderEnabled && (
+                <div className="flex justify-between items-center p-2 rounded-lg bg-slate-50 border border-slate-100">
+                  <span className="text-slate-500 font-medium">Next Reminder</span>
+                  <span className="font-semibold text-slate-700">
+                    {envelope.nextReminderAt ? formatDate(envelope.nextReminderAt) : "Not scheduled"}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center p-2 rounded-lg bg-slate-50 border border-slate-100">
+                <span className="text-slate-500 font-medium">Expires On</span>
+                <span className="font-semibold text-slate-700">
+                  {envelope.expiresAt ? formatDate(envelope.expiresAt) : "No deadline"}
+                </span>
+              </div>
+
+              {envelope.lastReminderAt && (
+                <div className="flex justify-between items-center p-2 rounded-lg bg-slate-50 border border-slate-100">
+                  <span className="text-slate-500 font-medium">Last Sent</span>
+                  <span className="font-semibold text-slate-700">
+                    {formatRelativeDate(new Date(envelope.lastReminderAt))}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Signers Panel */}
           <div className="bg-white rounded-xl border border-slate-200/80 p-5 shadow-2xs">
             <h3 className="text-xs font-bold text-slate-900 mb-3 flex items-center justify-between">
@@ -282,9 +419,25 @@ export function DocumentDetailClient({ envelope }: { envelope: EnvelopeDetail })
             )}
 
             {isSent && (
-              <Button variant="outline" className="w-full h-8 text-xs font-semibold text-slate-700">
-                <Bell className="h-3.5 w-3.5 mr-1.5" /> Send Email Reminder
+              <Button
+                variant="outline"
+                className="w-full h-8 text-xs font-semibold text-slate-700"
+                onClick={handleSendReminderNow}
+                disabled={sendingReminder}
+              >
+                {sendingReminder ? (
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <Bell className="h-3.5 w-3.5 mr-1.5" />
+                )}
+                Send Reminder Now
               </Button>
+            )}
+
+            {reminderNotification && (
+              <p className="text-[11px] font-medium text-slate-600 bg-slate-50 p-2 rounded border border-slate-200">
+                {reminderNotification}
+              </p>
             )}
 
             {isSent && (
@@ -350,6 +503,127 @@ export function DocumentDetailClient({ envelope }: { envelope: EnvelopeDetail })
           )}
         </div>
       </div>
+
+      {/* Edit Reminders & Expiration Modal */}
+      {showConfigModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Settings className="h-4 w-4 text-[#1A56DB]" /> Reminders & Expiration Settings
+              </h3>
+              <button
+                onClick={() => setShowConfigModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <div>
+                  <p className="font-bold text-slate-800">Automatic Email Reminders</p>
+                  <p className="text-slate-500 text-[11px]">Send recurring reminders to active pending signers.</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={reminderEnabled}
+                  onChange={(e) => setReminderEnabled(e.target.checked)}
+                  className="h-4 w-4 text-[#1A56DB] rounded border-slate-300 focus:ring-[#1A56DB]"
+                />
+              </div>
+
+              {reminderEnabled && (
+                <div className="grid grid-cols-2 gap-3 pl-2">
+                  <div>
+                    <Label className="text-[11px] text-slate-600 font-semibold">First Reminder After (Days)</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={30}
+                      value={reminderFirstAfterDays}
+                      onChange={(e) => setReminderFirstAfterDays(Number(e.target.value))}
+                      className="h-8 text-xs mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[11px] text-slate-600 font-semibold">Repeat Every (Days)</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={30}
+                      value={reminderEveryDays}
+                      onChange={(e) => setReminderEveryDays(Number(e.target.value))}
+                      className="h-8 text-xs mt-1"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-[11px] text-slate-600 font-semibold">Custom Reminder Note (Optional)</Label>
+                    <Textarea
+                      value={reminderMessage}
+                      onChange={(e) => setReminderMessage(e.target.value)}
+                      placeholder="Add a personal note to reminder emails..."
+                      className="h-16 text-xs mt-1"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-slate-100 space-y-3">
+                <p className="font-bold text-slate-800">Expiration & Deadlines</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-[11px] text-slate-600 font-semibold">Expiration Date</Label>
+                    <Input
+                      type="date"
+                      value={expiresAtInput}
+                      onChange={(e) => setExpiresAtInput(e.target.value)}
+                      className="h-8 text-xs mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[11px] text-slate-600 font-semibold">Warning Notice (Days Before)</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={14}
+                      value={expirationWarningDays}
+                      onChange={(e) => setExpirationWarningDays(Number(e.target.value))}
+                      className="h-8 text-xs mt-1"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {configError && (
+                <p className="text-red-600 text-[11px] bg-red-50 p-2 rounded border border-red-200">
+                  {configError}
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => setShowConfigModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="flex-1 bg-[#1A56DB] hover:bg-blue-700 text-white"
+                onClick={handleSaveConfig}
+                disabled={savingConfig}
+              >
+                {savingConfig ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null} Save Settings
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog
         open={confirmState.open}
