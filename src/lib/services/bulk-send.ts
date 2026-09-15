@@ -248,118 +248,187 @@ export async function processBulkSendBatch(batchId: string, ownerId: string) {
             nextReminderAt = new Date(now.getTime() + reminderFirstAfterDays * 24 * 60 * 60 * 1000);
           }
 
-          // 1. Create Envelope for this row
-          const primaryRecipientName = Object.values(mappedObj)[0]?.name;
-          const primaryRecipientEmail = Object.values(mappedObj)[0]?.email || `row-${row.rowNumber}`;
-          const envTitle = `${template.name} - ${primaryRecipientName || primaryRecipientEmail}`;
-
-          const [envelope] = await db
-            .insert(envelopes)
-            .values({
-              ownerId,
-              title: envTitle,
-              status: "SENT",
-              reminderEnabled,
-              reminderFirstAfterDays,
-              reminderEveryDays,
-              reminderMessage,
-              nextReminderAt,
-              expiresAt,
-              expirationWarningDays,
-              createdAt: now,
-              updatedAt: now,
-            })
-            .returning();
-
-          // 2. Clone Document from template storage
-          const [doc] = await db
-            .insert(documents)
-            .values({
-              envelopeId: envelope.id,
-              filename: template.filename,
-              storageKey: `documents/${envelope.id}/original.pdf`,
-              pageCount: template.pageCount,
-            })
-            .returning();
-
-          const templatePdfExists = await storageProvider.exists(template.storageKey);
-          if (templatePdfExists) {
-            const pdfBytes = await storageProvider.download(template.storageKey);
-            await storageProvider.upload(pdfBytes, doc.storageKey);
-          }
-
-          // 3. Create Signers & Map Roles
-          const roleToSignerIdMap = new Map<string, string>();
-          const createdSignersList: Array<{ id: string; email: string; name: string | null; token: string; order: number | null }> = [];
-
-          for (const role of tRoles) {
-            const rData = mappedObj[role.id];
-            if (rData && rData.email) {
-              const token = generateSigningToken();
-              const [signer] = await db
-                .insert(signers)
-                .values({
-                  envelopeId: envelope.id,
-                  email: rData.email.trim().toLowerCase(),
-                  name: rData.name?.trim() || null,
-                  token,
-                  order: role.order,
-                  status: "PENDING",
-                })
-                .returning();
-
-              roleToSignerIdMap.set(role.id, signer.id);
-              createdSignersList.push(signer);
+          // 1. Check if an envelope already exists for this row (Retry Safety)
+          let envelope: typeof envelopes.$inferSelect | null = null;
+          if (row.envelopeId) {
+            const [existingEnv] = await db
+              .select()
+              .from(envelopes)
+              .where(and(eq(envelopes.id, row.envelopeId), eq(envelopes.ownerId, ownerId)))
+              .limit(1);
+            if (existingEnv) {
+              envelope = existingEnv;
             }
           }
 
-          if (createdSignersList.length === 0) {
-            throw new Error(`Row ${row.rowNumber} has no valid recipient mappings.`);
-          }
+          if (!envelope) {
+            const primaryRecipientName = Object.values(mappedObj)[0]?.name;
+            const primaryRecipientEmail = Object.values(mappedObj)[0]?.email || `row-${row.rowNumber}`;
+            const envTitle = `${template.name} - ${primaryRecipientName || primaryRecipientEmail}`;
 
-          // 4. Instantiate Signature Fields
-          const fieldsToInsert = tFields.map((tf) => {
-            const assignedSignerId = tf.roleId ? roleToSignerIdMap.get(tf.roleId) ?? null : null;
-            return {
-              documentId: doc.id,
-              signerId: assignedSignerId,
-              type: tf.type,
-              pageNumber: tf.pageNumber,
-              x: String(tf.x),
-              y: String(tf.y),
-              width: String(tf.width),
-              height: String(tf.height),
-              required: tf.required,
-            };
-          });
+            const [newEnv] = await db
+              .insert(envelopes)
+              .values({
+                ownerId,
+                title: envTitle,
+                status: "SENT",
+                reminderEnabled,
+                reminderFirstAfterDays,
+                reminderEveryDays,
+                reminderMessage,
+                nextReminderAt,
+                expiresAt,
+                expirationWarningDays,
+                createdAt: now,
+                updatedAt: now,
+              })
+              .returning();
+            envelope = newEnv;
 
-          if (fieldsToInsert.length > 0) {
-            await db.insert(signatureFields).values(fieldsToInsert);
-          }
+            // 2. Clone Document from template storage
+            const [doc] = await db
+              .insert(documents)
+              .values({
+                envelopeId: envelope.id,
+                filename: template.filename,
+                storageKey: `documents/${envelope.id}/original.pdf`,
+                pageCount: template.pageCount,
+              })
+              .returning();
 
-          // 5. Activate initial active order signers & send emails
-          const orders = createdSignersList.map((s) => s.order ?? 1);
-          const minOrder = Math.min(...orders);
-          const activeSigners = createdSignersList.filter((s) => (s.order ?? 1) === minOrder);
+            const templatePdfExists = await storageProvider.exists(template.storageKey);
+            if (templatePdfExists) {
+              const pdfBytes = await storageProvider.download(template.storageKey);
+              await storageProvider.upload(pdfBytes, doc.storageKey);
+            }
 
-          for (const signer of activeSigners) {
-            await db
-              .update(signers)
-              .set({ status: "SENT" })
-              .where(eq(signers.id, signer.id));
+            // 3. Create Signers & Map Roles
+            const roleToSignerIdMap = new Map<string, string>();
+            const createdSignersList: Array<{ id: string; email: string; name: string | null; token: string; order: number | null }> = [];
 
-            await sendSigningEmail({
-              to: signer.email,
-              signerName: signer.name ?? signer.email,
-              senderName: template.name,
-              documentTitle: envelope.title,
-              token: signer.token,
+            for (const role of tRoles) {
+              const rData = mappedObj[role.id];
+              if (rData && rData.email) {
+                const token = generateSigningToken();
+                const [signer] = await db
+                  .insert(signers)
+                  .values({
+                    envelopeId: envelope.id,
+                    email: rData.email.trim().toLowerCase(),
+                    name: rData.name?.trim() || null,
+                    token,
+                    order: role.order,
+                    status: "PENDING",
+                  })
+                  .returning();
+
+                roleToSignerIdMap.set(role.id, signer.id);
+                createdSignersList.push(signer);
+              }
+            }
+
+            if (createdSignersList.length === 0) {
+              throw new Error(`Row ${row.rowNumber} has no valid recipient mappings.`);
+            }
+
+            // 4. Instantiate Signature Fields
+            const fieldsToInsert = tFields.map((tf) => {
+              const assignedSignerId = tf.roleId ? roleToSignerIdMap.get(tf.roleId) ?? null : null;
+              return {
+                documentId: doc.id,
+                signerId: assignedSignerId,
+                type: tf.type,
+                pageNumber: tf.pageNumber,
+                x: String(tf.x),
+                y: String(tf.y),
+                width: String(tf.width),
+                height: String(tf.height),
+                required: tf.required,
+              };
             });
 
-            // Contact usage integration
-            const existingContact = await findDuplicateContact(ownerId, signer.email);
-            if (existingContact) {
-              await recordContactUsage(existingContact.id, ownerId);
+            if (fieldsToInsert.length > 0) {
+              await db.insert(signatureFields).values(fieldsToInsert);
+            }
+
+            // 5. Activate initial active order signers & send emails
+            const orders = createdSignersList.map((s) => s.order ?? 1);
+            const minOrder = Math.min(...orders);
+            const activeSigners = createdSignersList.filter((s) => (s.order ?? 1) === minOrder);
+
+            for (const signer of activeSigners) {
+              await db
+                .update(signers)
+                .set({ status: "SENT" })
+                .where(eq(signers.id, signer.id));
+
+              await sendSigningEmail({
+                to: signer.email,
+                signerName: signer.name ?? signer.email,
+                senderName: template.name,
+                documentTitle: envelope.title,
+                token: signer.token,
+              });
+
+              // Contact usage integration
+              const existingContact = await findDuplicateContact(ownerId, signer.email);
+              if (existingContact) {
+                await recordContactUsage(existingContact.id, ownerId);
+              }
+            }
+          } else {
+            // Reuse existing envelope! Update signers' emails/names if mappedObj was updated
+            const existingSigners = await db
+              .select()
+              .from(signers)
+              .where(eq(signers.envelopeId, envelope.id))
+              .orderBy(asc(signers.order));
+
+            for (const role of tRoles) {
+              const rData = mappedObj[role.id];
+              if (rData && rData.email) {
+                const targetSigner = existingSigners.find((s) => s.order === role.order) || existingSigners[0];
+                if (targetSigner) {
+                  await db
+                    .update(signers)
+                    .set({
+                      email: rData.email.trim().toLowerCase(),
+                      name: rData.name?.trim() || null,
+                    })
+                    .where(eq(signers.id, targetSigner.id));
+                }
+              }
+            }
+
+            // Resend emails to active order signers
+            const updatedSigners = await db
+              .select()
+              .from(signers)
+              .where(eq(signers.envelopeId, envelope.id))
+              .orderBy(asc(signers.order));
+
+            const orders = updatedSigners.map((s) => s.order ?? 1);
+            const minOrder = Math.min(...orders);
+            const activeSigners = updatedSigners.filter((s) => (s.order ?? 1) === minOrder);
+
+            for (const signer of activeSigners) {
+              await db
+                .update(signers)
+                .set({ status: "SENT" })
+                .where(eq(signers.id, signer.id));
+
+              await sendSigningEmail({
+                to: signer.email,
+                signerName: signer.name ?? signer.email,
+                senderName: template.name,
+                documentTitle: envelope.title,
+                token: signer.token,
+              });
+
+              const existingContact = await findDuplicateContact(ownerId, signer.email);
+              if (existingContact) {
+                await recordContactUsage(existingContact.id, ownerId);
+              }
             }
           }
 
@@ -477,4 +546,141 @@ export async function retryFailedBulkSendRows(batchId: string, ownerId: string, 
 
   // Trigger processing
   return await processBulkSendBatch(batch.id, ownerId);
+}
+
+/**
+ * Updates a row's recipient data, validates inputs, and optionally triggers a retry execution.
+ */
+export async function updateBulkSendRowAndRetry({
+  batchId,
+  rowId,
+  ownerId,
+  recipientData,
+  retryNow = false,
+}: {
+  batchId: string;
+  rowId: string;
+  ownerId: string;
+  recipientData: Record<string, { email: string; name?: string }>;
+  retryNow?: boolean;
+}) {
+  // 1. Authorize batch owner
+  const [batch] = await db
+    .select()
+    .from(bulkSendBatches)
+    .where(and(eq(bulkSendBatches.id, batchId), eq(bulkSendBatches.ownerId, ownerId)))
+    .limit(1);
+
+  if (!batch) throw new Error("Batch not found or unauthorized");
+
+  // 2. Fetch target row
+  const [row] = await db
+    .select()
+    .from(bulkSendRows)
+    .where(and(eq(bulkSendRows.id, rowId), eq(bulkSendRows.batchId, batch.id)))
+    .limit(1);
+
+  if (!row) throw new Error("Row not found in batch");
+
+  // 3. Validate recipient data
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const sanitizedRecipientData: Record<string, { email: string; name?: string }> = {};
+
+  for (const [roleId, data] of Object.entries(recipientData)) {
+    const email = (data.email || "").trim();
+    if (!email) {
+      throw new Error(`Email address is required.`);
+    }
+    if (!emailRegex.test(email)) {
+      throw new Error(`Invalid email address "${email}".`);
+    }
+    sanitizedRecipientData[roleId] = {
+      email: email.toLowerCase(),
+      name: (data.name || "").trim() || undefined,
+    };
+  }
+
+  const now = new Date();
+
+  // 4. Update row mappedData
+  await db
+    .update(bulkSendRows)
+    .set({
+      mappedData: sanitizedRecipientData,
+      ...(retryNow
+        ? {
+            status: "PENDING",
+            errorMessage: null,
+          }
+        : {}),
+      updatedAt: now,
+    })
+    .where(eq(bulkSendRows.id, row.id));
+
+  // 5. Audit events
+  await db.insert(auditEvents).values({
+    envelopeId: row.envelopeId ?? null,
+    event: "BULK_SEND_ROW_UPDATED",
+    actor: ownerId,
+    meta: {
+      batchId: batch.id,
+      rowId: row.id,
+      rowNumber: row.rowNumber,
+      updatedRecipientData: sanitizedRecipientData,
+    },
+  });
+
+  if (retryNow) {
+    await db.insert(auditEvents).values({
+      envelopeId: row.envelopeId ?? null,
+      event: "BULK_SEND_ROW_RETRIED",
+      actor: ownerId,
+      meta: {
+        batchId: batch.id,
+        rowId: row.id,
+        rowNumber: row.rowNumber,
+      },
+    });
+
+    return await processBulkSendBatch(batch.id, ownerId);
+  }
+
+  // Recalculate batch counters if saved without retry
+  const allRows = await db
+    .select({ status: bulkSendRows.status })
+    .from(bulkSendRows)
+    .where(eq(bulkSendRows.batchId, batch.id));
+
+  const sentCount = allRows.filter((r) => r.status === "SENT").length;
+  const failedCount = allRows.filter((r) => r.status === "FAILED").length;
+  const pendingCount = allRows.filter((r) => r.status === "PENDING" || r.status === "PROCESSING").length;
+
+  let finalStatus: typeof batch.status = "COMPLETED";
+  if (failedCount > 0 && sentCount > 0) {
+    finalStatus = "COMPLETED_WITH_ERRORS";
+  } else if (failedCount > 0 && sentCount === 0 && pendingCount === 0) {
+    finalStatus = "FAILED";
+  } else if (pendingCount > 0) {
+    finalStatus = "PROCESSING";
+  }
+
+  await db
+    .update(bulkSendBatches)
+    .set({
+      status: finalStatus,
+      sentRows: sentCount,
+      failedRows: failedCount,
+      pendingRows: pendingCount,
+      processingRows: 0,
+      updatedAt: new Date(),
+    })
+    .where(eq(bulkSendBatches.id, batch.id));
+
+  return {
+    batchId: batch.id,
+    status: finalStatus,
+    sentCount,
+    failedCount,
+    pendingCount,
+  };
 }

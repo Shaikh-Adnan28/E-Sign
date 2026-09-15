@@ -1,9 +1,9 @@
 import { auth } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { bulkSendBatches, bulkSendRows, templates } from "@/lib/db/schema";
+import { bulkSendBatches, bulkSendRows, templates, templateRoles } from "@/lib/db/schema";
 import { and, eq, asc } from "drizzle-orm";
-import { BatchDetailClient, BatchDetailItem, BatchRowItem } from "@/components/bulk-send/batch-detail-client";
+import { BatchDetailClient, BatchDetailItem, BatchRowItem, TemplateRoleItem } from "@/components/bulk-send/batch-detail-client";
 
 export default async function BulkSendDetailPage({
   params,
@@ -32,6 +32,20 @@ export default async function BulkSendDetailPage({
     .from(bulkSendRows)
     .where(eq(bulkSendRows.batchId, id))
     .orderBy(asc(bulkSendRows.rowNumber));
+
+  const rolesRecords = batchRecord.batch.templateId
+    ? await db
+        .select()
+        .from(templateRoles)
+        .where(eq(templateRoles.templateId, batchRecord.batch.templateId))
+        .orderBy(asc(templateRoles.order))
+    : [];
+
+  const roles: TemplateRoleItem[] = rolesRecords.map((r) => ({
+    id: r.id,
+    roleName: r.roleName,
+    order: r.order ?? 1,
+  }));
 
   const batchDetail: BatchDetailItem = {
     id: batchRecord.batch.id,
@@ -65,7 +79,7 @@ export default async function BulkSendDetailPage({
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      <BatchDetailClient batch={batchDetail} rows={rowItems} />
+      <BatchDetailClient batch={batchDetail} rows={rowItems} templateRoles={roles} />
     </div>
   );
 }

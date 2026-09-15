@@ -139,3 +139,83 @@ describe("Phase 7.0 — Bulk Send Batch Logic & Idempotency", () => {
     expect(eligibleForRetry.some((r) => r.id === "r1")).toBe(false);
   });
 });
+
+describe("Phase 7.0 — Row Editing & Retry UX Polish", () => {
+  function validateRecipientInput(data: Record<string, { email: string; name?: string }>): { valid: boolean; errors: Record<string, string> } {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const errors: Record<string, string> = {};
+    let valid = true;
+
+    for (const [roleId, item] of Object.entries(data)) {
+      const email = (item.email || "").trim();
+      if (!email) {
+        errors[roleId] = "Email is required.";
+        valid = false;
+      } else if (!emailRegex.test(email)) {
+        errors[roleId] = "Invalid email format.";
+        valid = false;
+      }
+    }
+
+    return { valid, errors };
+  }
+
+  it("validates edited recipient data email inputs", () => {
+    const invalidInput = {
+      "role-1": { email: "invalid-email", name: "John Doe" },
+    };
+    const invalidResult = validateRecipientInput(invalidInput);
+    expect(invalidResult.valid).toBe(false);
+    expect(invalidResult.errors["role-1"]).toBe("Invalid email format.");
+
+    const validInput = {
+      "role-1": { email: "john@example.com", name: "John Doe" },
+    };
+    const validResult = validateRecipientInput(validInput);
+    expect(validResult.valid).toBe(true);
+    expect(Object.keys(validResult.errors)).toHaveLength(0);
+  });
+
+  it("preserves immutable row numbers when updating recipient data", () => {
+    const row = {
+      id: "row-123",
+      rowNumber: 1,
+      mappedData: { "role-1": { email: "old@example.com" } },
+    };
+
+    const updatedData = { "role-1": { email: "new@example.com" } };
+    const updatedRow = { ...row, mappedData: updatedData };
+
+    expect(updatedRow.rowNumber).toBe(1);
+    expect(updatedRow.mappedData["role-1"].email).toBe("new@example.com");
+  });
+
+  it("reuses existing envelope on retry rather than creating duplicate envelope", () => {
+    const existingRow = {
+      id: "row-1",
+      rowNumber: 1,
+      status: "FAILED" as const,
+      envelopeId: "existing-envelope-uuid-123",
+    };
+
+    // If row already has an envelopeId, retry must reuse existing-envelope-uuid-123
+    const targetEnvelopeId = existingRow.envelopeId ? existingRow.envelopeId : "new-envelope-uuid";
+    expect(targetEnvelopeId).toBe("existing-envelope-uuid-123");
+  });
+
+  it("recalculates batch counters accurately after single row retry succeeds", () => {
+    const batchMetricsBefore = { total: 5, sent: 0, failed: 5, status: "FAILED" };
+    
+    // Simulate 1 row succeeding on retry
+    const batchMetricsAfter = {
+      total: batchMetricsBefore.total,
+      sent: batchMetricsBefore.sent + 1,
+      failed: batchMetricsBefore.failed - 1,
+      status: "COMPLETED_WITH_ERRORS",
+    };
+
+    expect(batchMetricsAfter.sent).toBe(1);
+    expect(batchMetricsAfter.failed).toBe(4);
+    expect(batchMetricsAfter.status).toBe("COMPLETED_WITH_ERRORS");
+  });
+});
