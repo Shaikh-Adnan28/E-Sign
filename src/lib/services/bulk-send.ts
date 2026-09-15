@@ -138,7 +138,7 @@ export async function createBulkSendBatch({
   }
 
   await db.insert(auditEvents).values({
-    envelopeId: batch.id, // linked audit event
+    envelopeId: null,
     event: "BULK_SEND_CREATED",
     actor: ownerId,
     meta: {

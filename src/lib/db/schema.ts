@@ -154,7 +154,7 @@ export type NewSignatureField = typeof signatureFields.$inferInsert;
 // Audit events table
 export const auditEvents = pgTable("audit_events", {
   id: uuid("id").primaryKey().defaultRandom(),
-  envelopeId: uuid("envelope_id").references(() => envelopes.id, { onDelete: "cascade" }).notNull(),
+  envelopeId: uuid("envelope_id").references(() => envelopes.id, { onDelete: "cascade" }),
   event: text("event").notNull(),
   actor: text("actor"),
   meta: jsonb("meta"),

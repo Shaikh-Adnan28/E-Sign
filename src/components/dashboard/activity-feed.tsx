@@ -6,7 +6,7 @@ import { formatRelativeDate, truncate } from "@/lib/utils"
 
 export interface DashboardActivityItem {
   id: string
-  envelopeId: string
+  envelopeId: string | null
   event: string
   actor: string | null
   envelopeTitle: string

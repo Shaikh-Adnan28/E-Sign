@@ -4,7 +4,7 @@ import { eq, and, sql, desc, inArray } from "drizzle-orm";
 
 export interface ContactActivityItem {
   id: string;
-  envelopeId: string;
+  envelopeId: string | null;
   envelopeTitle: string;
   event: string;
   createdAt: Date | null;

@@ -118,7 +118,7 @@ async function getDashboardData(userId: string) {
         envelopeId: e.envelopeId,
         event: e.event,
         actor: e.actor,
-        envelopeTitle: titleMap[e.envelopeId] ?? "Document",
+        envelopeTitle: (e.envelopeId && titleMap[e.envelopeId]) ?? "Document",
         createdAt: e.createdAt,
       }))
     }
