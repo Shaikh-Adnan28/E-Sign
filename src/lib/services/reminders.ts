@@ -147,7 +147,7 @@ export async function sendManualReminder(envelopeId: string, ownerId: string): P
     .orderBy(signers.order);
 
   const pendingSigners = envelopeSigners.filter(
-    (s) => !["SIGNED", "DECLINED", "EXPIRED"].includes(s.status)
+    (s) => !s.status || !["SIGNED", "DECLINED", "EXPIRED"].includes(s.status)
   );
 
   if (pendingSigners.length === 0) {
