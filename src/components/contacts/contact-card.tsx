@@ -14,6 +14,9 @@ import type { Contact } from "@/lib/db/schema"
 
 interface ContactCardProps {
   contact: Contact
+  selected?: boolean
+  onToggleSelect?: (id: string) => void
+  onClickDetail?: (contact: Contact) => void
   onEdit: (contact: Contact) => void
   onDelete: (contact: Contact) => void
   onViewActivity?: (contact: Contact) => void
@@ -39,15 +42,42 @@ function getAvatarColor(name: string) {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
 }
 
-export function ContactCard({ contact, onEdit, onDelete, onViewActivity }: ContactCardProps) {
+export function ContactCard({
+  contact,
+  selected = false,
+  onToggleSelect,
+  onClickDetail,
+  onEdit,
+  onDelete,
+  onViewActivity,
+}: ContactCardProps) {
   const initials = getInitials(contact.name)
   const avatarColor = getAvatarColor(contact.name)
 
   return (
-    <div className="group flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-slate-300 hover:shadow-sm relative">
+    <div
+      className={`group flex items-start gap-3.5 rounded-xl border p-4 shadow-xs transition-all relative ${
+        selected
+          ? "border-blue-500 bg-blue-50/40 ring-1 ring-blue-500/30"
+          : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
+      }`}
+    >
+      {/* Checkbox for selection */}
+      {onToggleSelect && (
+        <div className="pt-1.5 shrink-0">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => onToggleSelect(contact.id)}
+            className="h-4 w-4 rounded border-slate-300 text-[#1A56DB] focus:ring-[#1A56DB] cursor-pointer"
+          />
+        </div>
+      )}
+
       {/* Avatar */}
       <div
-        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${avatarColor}`}
+        onClick={() => onClickDetail && onClickDetail(contact)}
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold cursor-pointer ${avatarColor}`}
       >
         {initials}
       </div>
@@ -55,7 +85,12 @@ export function ContactCard({ contact, onEdit, onDelete, onViewActivity }: Conta
       {/* Info */}
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex items-center gap-2">
-          <p className="truncate font-semibold text-slate-900">{contact.name}</p>
+          <p
+            onClick={() => onClickDetail && onClickDetail(contact)}
+            className="truncate font-bold text-slate-900 cursor-pointer hover:text-blue-600 transition-colors"
+          >
+            {contact.name}
+          </p>
           {contact.usageCount > 0 && (
             <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded flex items-center gap-0.5">
               <Clock size={10} /> {contact.usageCount}x
@@ -65,15 +100,15 @@ export function ContactCard({ contact, onEdit, onDelete, onViewActivity }: Conta
 
         <a
           href={`mailto:${contact.email}`}
-          className="flex items-center gap-1.5 truncate text-sm text-slate-500 hover:text-blue-600 transition-colors"
+          className="flex items-center gap-1.5 truncate text-xs text-slate-500 hover:text-blue-600 transition-colors"
         >
-          <Mail className="h-3.5 w-3.5 shrink-0" />
+          <Mail className="h-3.5 w-3.5 shrink-0 text-slate-400" />
           <span className="truncate">{contact.email}</span>
         </a>
 
         {contact.company && (
-          <p className="flex items-center gap-1.5 truncate text-sm text-slate-500">
-            <Building2 className="h-3.5 w-3.5 shrink-0" />
+          <p className="flex items-center gap-1.5 truncate text-xs text-slate-500">
+            <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
             <span className="truncate">{contact.company}</span>
           </p>
         )}
@@ -81,9 +116,9 @@ export function ContactCard({ contact, onEdit, onDelete, onViewActivity }: Conta
         {contact.phone && (
           <a
             href={`tel:${contact.phone}`}
-            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-600 transition-colors"
+            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-blue-600 transition-colors"
           >
-            <Phone className="h-3.5 w-3.5 shrink-0" />
+            <Phone className="h-3.5 w-3.5 shrink-0 text-slate-400" />
             <span>{contact.phone}</span>
           </a>
         )}
@@ -93,7 +128,7 @@ export function ContactCard({ contact, onEdit, onDelete, onViewActivity }: Conta
             {contact.tags.map((tag) => (
               <span
                 key={tag}
-                className="inline-flex items-center gap-1 text-[10px] font-medium bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-100"
+                className="inline-flex items-center gap-1 text-[10px] font-semibold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-100"
               >
                 <Tag size={9} /> {tag}
               </span>
@@ -102,7 +137,7 @@ export function ContactCard({ contact, onEdit, onDelete, onViewActivity }: Conta
         )}
 
         {contact.notes && (
-          <p className="mt-1.5 line-clamp-2 text-xs text-slate-400 italic">
+          <p className="mt-1 line-clamp-2 text-xs text-slate-400 italic">
             {contact.notes}
           </p>
         )}
@@ -121,6 +156,11 @@ export function ContactCard({ contact, onEdit, onDelete, onViewActivity }: Conta
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
+          {onClickDetail && (
+            <DropdownMenuItem onClick={() => onClickDetail(contact)} className="cursor-pointer text-xs font-semibold text-blue-600">
+              View Details & Activity
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={() => onEdit(contact)} className="cursor-pointer text-xs">
             <Pencil className="mr-2 h-3.5 w-3.5" />
             Edit Contact

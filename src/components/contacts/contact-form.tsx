@@ -129,12 +129,35 @@ export function ContactForm({
 
       {/* Tags */}
       <div className="space-y-1.5">
-        <Label htmlFor="tags">Tags (comma separated)</Label>
+        <Label htmlFor="tags">Tags</Label>
         <Input
           id="tags"
-          placeholder="VIP, Vendor, Executive"
+          placeholder="Client, Vendor, VIP, Executive..."
           {...register("tags")}
+          className="h-9 text-xs"
         />
+        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+          <span className="text-[10px] text-slate-400 font-semibold uppercase">Popular:</span>
+          {["Client", "Vendor", "Employee", "Partner", "VIP"].map((popularTag) => (
+            <button
+              key={popularTag}
+              type="button"
+              onClick={() => {
+                const current = (defaultValues?.tags || "").split(",").map((t) => t.trim()).filter(Boolean);
+                if (!current.includes(popularTag)) {
+                  const tagInput = document.getElementById("tags") as HTMLInputElement;
+                  if (tagInput) {
+                    tagInput.value = tagInput.value ? `${tagInput.value}, ${popularTag}` : popularTag;
+                    tagInput.dispatchEvent(new Event("input", { bubbles: true }));
+                  }
+                }
+              }}
+              className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-700 transition-colors border border-slate-200"
+            >
+              + {popularTag}
+            </button>
+          ))}
+        </div>
         {errors.tags && (
           <p className="text-xs text-red-500">{errors.tags.message}</p>
         )}

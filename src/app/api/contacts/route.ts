@@ -7,10 +7,13 @@ import { contacts } from "@/lib/db/schema"
 
 // ─── Validation schemas ──────────────────────────────────────────
 
+// ─── Validation schemas ──────────────────────────────────────────
+
 const querySchema = z.object({
   search: z.string().optional(),
+  tag: z.string().optional(),
   sort: z
-    .enum(["newest", "oldest", "name_asc", "name_desc"])
+    .enum(["newest", "oldest", "name_asc", "name_desc", "recently_used"])
     .optional()
     .default("name_asc"),
   page: z.coerce.number().int().positive().optional().default(1),
@@ -30,6 +33,7 @@ const createSchema = z.object({
       (val) => !val || /^[+\d\s\-().]{0,50}$/.test(val),
       "Invalid phone number format"
     ),
+  tags: z.array(z.string()).optional(),
   notes: z.string().max(2000, "Notes are too long").trim().optional(),
 })
 
@@ -45,6 +49,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const parsed = querySchema.safeParse({
       search: searchParams.get("search") ?? undefined,
+      tag: searchParams.get("tag") ?? undefined,
       sort: searchParams.get("sort") ?? undefined,
       page: searchParams.get("page") ?? undefined,
       limit: searchParams.get("limit") ?? undefined,
@@ -57,7 +62,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { search, sort, page, limit } = parsed.data
+    const { search, tag, sort, page, limit } = parsed.data
     const userId = session.user.id
     const offset = (page - 1) * limit
 
@@ -84,7 +89,9 @@ export async function GET(request: NextRequest) {
           ? desc(contacts.name)
           : sort === "newest"
             ? desc(contacts.createdAt)
-            : asc(contacts.name) // name_asc default
+            : sort === "recently_used"
+              ? desc(contacts.lastUsedAt)
+              : asc(contacts.name) // name_asc default
 
     const [rows, totalResult] = await Promise.all([
       db
@@ -97,10 +104,19 @@ export async function GET(request: NextRequest) {
       db.select({ count: count() }).from(contacts).where(whereClause),
     ])
 
-    const total = Number(totalResult[0]?.count ?? 0)
-    const totalPages = Math.ceil(total / limit)
+    // In-memory filter for JSONB tags if tag parameter is provided
+    let filteredRows = rows
+    if (tag && tag.trim()) {
+      const tagLower = tag.trim().toLowerCase()
+      filteredRows = rows.filter((r) =>
+        Array.isArray(r.tags) && r.tags.some((t) => t.toLowerCase() === tagLower)
+      )
+    }
 
-    return NextResponse.json({ data: rows, total, page, totalPages })
+    const total = tag ? filteredRows.length : Number(totalResult[0]?.count ?? 0)
+    const totalPages = Math.ceil(total / limit) || 1
+
+    return NextResponse.json({ data: filteredRows, total, page, totalPages })
   } catch {
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 })
   }
@@ -125,7 +141,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { name, email, company, phone, notes } = parsed.data
+    const { name, email, company, phone, tags, notes } = parsed.data
     const userId = session.user.id
 
     // Check for duplicate email within the same owner
@@ -150,12 +166,14 @@ export async function POST(request: NextRequest) {
         email,
         company: company ?? null,
         phone: phone ?? null,
+        tags: tags ?? [],
         notes: notes ?? null,
       })
       .returning()
 
     return NextResponse.json(newContact, { status: 201 })
-  } catch {
+  } catch (error) {
+    console.error("[POST /api/contacts]", error)
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 })
   }
 }
