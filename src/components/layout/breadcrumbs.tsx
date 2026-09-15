@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { ChevronRight, Home } from "lucide-react"
-import { cn } from "@/lib/utils"
+
 
 export function Breadcrumbs() {
   const pathname = usePathname()

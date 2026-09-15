@@ -50,6 +50,8 @@ export default async function DocumentDetailPage({
 
   const { id } = await params
 
+  let detail: EnvelopeDetail | null = null
+
   try {
     const [envelope] = await db
       .select()
@@ -61,7 +63,7 @@ export default async function DocumentDetailPage({
       // Dev mock fallback if mock ID requested or previewing
       if (id.startsWith("mock-env-") || process.env.NODE_ENV !== "production") {
         const mockItem = MOCK_ENVELOPES.find((m) => m.id === id) || MOCK_ENVELOPES[0]
-        const mockDetail: EnvelopeDetail = {
+        detail = {
           id: mockItem.id,
           title: mockItem.title,
           status: mockItem.status,
@@ -96,61 +98,63 @@ export default async function DocumentDetailPage({
             createdAt: a.createdAt,
           })),
         }
-        return <DocumentDetailClient envelope={mockDetail} />
       }
-      notFound()
+    } else {
+      const [envelopeDocuments, envelopeSigners, events] = await Promise.all([
+        db.select().from(documents).where(eq(documents.envelopeId, id)),
+        db
+          .select()
+          .from(signers)
+          .where(eq(signers.envelopeId, id))
+          .orderBy(signers.order),
+        db
+          .select()
+          .from(auditEvents)
+          .where(eq(auditEvents.envelopeId, id))
+          .orderBy(desc(auditEvents.createdAt)),
+      ])
+
+      detail = {
+        id: envelope.id,
+        title: envelope.title,
+        status: envelope.status,
+        message: envelope.message ?? null,
+        expiresAt: envelope.expiresAt ?? null,
+        createdAt: envelope.createdAt ?? null,
+        updatedAt: envelope.updatedAt ?? null,
+        documents: envelopeDocuments.map((d) => ({
+          id: d.id,
+          filename: d.filename,
+          storageKey: d.storageKey,
+          pageCount: d.pageCount ?? null,
+          createdAt: d.createdAt ?? null,
+        })),
+        signers: envelopeSigners.map((s) => ({
+          id: s.id,
+          name: s.name ?? null,
+          email: s.email,
+          status: s.status ?? null,
+          order: s.order ?? null,
+          signedAt: s.signedAt ?? null,
+          viewedAt: s.viewedAt ?? null,
+        })),
+        auditEvents: events.map((e) => ({
+          id: e.id,
+          event: e.event,
+          actor: e.actor ?? null,
+          meta: e.meta,
+          ip: e.ip ?? null,
+          createdAt: e.createdAt ?? null,
+        })),
+      }
     }
-
-    const [envelopeDocuments, envelopeSigners, events] = await Promise.all([
-      db.select().from(documents).where(eq(documents.envelopeId, id)),
-      db
-        .select()
-        .from(signers)
-        .where(eq(signers.envelopeId, id))
-        .orderBy(signers.order),
-      db
-        .select()
-        .from(auditEvents)
-        .where(eq(auditEvents.envelopeId, id))
-        .orderBy(desc(auditEvents.createdAt)),
-    ])
-
-    const detail: EnvelopeDetail = {
-      id: envelope.id,
-      title: envelope.title,
-      status: envelope.status,
-      message: envelope.message ?? null,
-      expiresAt: envelope.expiresAt ?? null,
-      createdAt: envelope.createdAt ?? null,
-      updatedAt: envelope.updatedAt ?? null,
-      documents: envelopeDocuments.map((d) => ({
-        id: d.id,
-        filename: d.filename,
-        storageKey: d.storageKey,
-        pageCount: d.pageCount ?? null,
-        createdAt: d.createdAt ?? null,
-      })),
-      signers: envelopeSigners.map((s) => ({
-        id: s.id,
-        name: s.name ?? null,
-        email: s.email,
-        status: s.status ?? null,
-        order: s.order ?? null,
-        signedAt: s.signedAt ?? null,
-        viewedAt: s.viewedAt ?? null,
-      })),
-      auditEvents: events.map((e) => ({
-        id: e.id,
-        event: e.event,
-        actor: e.actor ?? null,
-        meta: e.meta,
-        ip: e.ip ?? null,
-        createdAt: e.createdAt ?? null,
-      })),
-    }
-
-    return <DocumentDetailClient envelope={detail} />
   } catch {
     notFound()
   }
+
+  if (!detail) {
+    notFound()
+  }
+
+  return <DocumentDetailClient envelope={detail} />
 }

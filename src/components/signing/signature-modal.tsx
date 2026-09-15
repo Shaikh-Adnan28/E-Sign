@@ -3,6 +3,8 @@
 import { useRef, useState, useEffect } from "react";
 import { X, Trash2, PenLine, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface SignatureModalProps {
   title?: string;
@@ -103,30 +105,30 @@ export function SignatureModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="text-base font-bold text-slate-900">{title}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 transition-colors">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+          <h2 className="text-base font-bold text-[#0F172A]">{title}</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition-colors">
             <X size={18} />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-slate-100">
+        <div className="flex border-b border-slate-100 bg-slate-50/30">
           {(["draw", "type"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`flex-1 py-3 text-sm font-medium gap-1.5 flex items-center justify-center transition-colors ${
+              className={`flex-1 py-3 text-sm font-semibold gap-1.5 flex items-center justify-center transition-colors ${
                 tab === t
-                  ? "text-blue-600 border-b-2 border-blue-500"
-                  : "text-slate-500 hover:text-slate-700"
+                  ? "text-[#1A56DB] border-b-2 border-[#1A56DB] bg-white"
+                  : "text-slate-500 hover:text-slate-800"
               }`}
             >
               {t === "draw" ? <PenLine size={14} /> : <Type size={14} />}
-              {t === "draw" ? "Draw" : "Type"}
+              {t === "draw" ? "Draw Signature" : "Type Signature"}
             </button>
           ))}
         </div>
@@ -135,8 +137,8 @@ export function SignatureModal({
         <div className="p-6">
           {tab === "draw" ? (
             <div className="flex flex-col gap-3">
-              <p className="text-xs text-slate-500">Sign in the box below using your mouse or touch.</p>
-              <div className="relative border-2 border-slate-200 rounded-xl overflow-hidden bg-white" style={{ height: CANVAS_H }}>
+              <p className="text-xs text-slate-500 font-medium">Sign in the box below using your mouse or touch.</p>
+              <div className="relative border-2 border-slate-200 rounded-xl overflow-hidden bg-white shadow-inner" style={{ height: CANVAS_H }}>
                 <canvas
                   ref={canvasRef}
                   width={CANVAS_W}
@@ -151,29 +153,32 @@ export function SignatureModal({
               </div>
               <button
                 onClick={clearCanvas}
-                className="self-start flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                className="self-start flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
               >
-                <Trash2 size={12} /> Clear
+                <Trash2 size={12} /> Clear Canvas
               </button>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              <p className="text-xs text-slate-500">Type your name and we&apos;ll generate a signature.</p>
-              <input
+              <p className="text-xs text-slate-500 font-medium">Type your full name to generate a styled signature.</p>
+              <Label htmlFor="sig-typed-name" className="text-xs font-semibold text-[#0F172A]">Full Name</Label>
+              <Input
+                id="sig-typed-name"
                 type="text"
-                placeholder="Your full name"
+                placeholder="Enter your full name clearly..."
                 value={typedName}
                 onChange={(e) => setTypedName(e.target.value)}
-                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                className="h-11 text-sm font-medium text-[#0F172A] placeholder:text-slate-500 border-[#E2E8F0] hover:border-[#3F83F8] focus:border-[#1A56DB] focus:ring-2 focus:ring-[#1A56DB]/20"
+                autoFocus
               />
               {typedName && (
                 <div
-                  className="w-full border border-slate-100 rounded-xl px-4 py-4 bg-slate-50 text-center"
+                  className="w-full border border-slate-200 rounded-xl px-4 py-4 bg-slate-50 text-center shadow-inner mt-1"
                   style={{
                     fontFamily: "'Georgia', 'Times New Roman', serif",
                     fontStyle: "italic",
                     fontSize: "clamp(24px, 5vw, 40px)",
-                    color: "#1e293b",
+                    color: "#0F172A",
                     minHeight: 80,
                     display: "flex",
                     alignItems: "center",
@@ -188,12 +193,16 @@ export function SignatureModal({
         </div>
 
         {/* Footer */}
-        <div className="flex gap-3 px-6 pb-5">
-          <Button variant="outline" className="flex-1" onClick={onClose}>
+        <div className="flex gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100 rounded-b-2xl">
+          <Button
+            variant="outline"
+            className="flex-1 border-[#E2E8F0] text-slate-700 hover:bg-white hover:border-slate-300 font-semibold"
+            onClick={onClose}
+          >
             Cancel
           </Button>
           <Button
-            className="flex-1"
+            className="flex-1 bg-[#1A56DB] hover:bg-blue-700 text-white font-semibold shadow-xs"
             onClick={handleConfirm}
             disabled={tab === "type" && !typedName.trim()}
           >

@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Loader2 } from "lucide-react"
 
@@ -127,11 +128,11 @@ export function ContactForm({
       {/* Notes */}
       <div className="space-y-1.5">
         <Label htmlFor="notes">Notes</Label>
-        <textarea
+        <Textarea
           id="notes"
           rows={3}
           placeholder="Any additional notes..."
-          className="flex w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm transition-all placeholder:text-slate-400 text-slate-900 focus-visible:outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+          className="resize-none"
           {...register("notes")}
         />
         {errors.notes && (

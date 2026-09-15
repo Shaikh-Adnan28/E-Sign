@@ -428,6 +428,7 @@ export default function EditorClient({
   useEffect(() => {
     init({ documentId, envelopeId, pageCount, initialFields });
     return () => reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentId, envelopeId, pageCount]);
 
   // Keyboard shortcuts
@@ -442,6 +443,7 @@ export default function EditorClient({
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFieldId]);
 
   function onCanvasClick(e: React.MouseEvent<HTMLDivElement>) {

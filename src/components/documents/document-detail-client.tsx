@@ -111,10 +111,11 @@ function StatusTimeline({
   )
 }
 
-export function DocumentDetailClient({ envelope }: { envelope: any }) {
+import type { EnvelopeDetail } from "@/app/dashboard/documents/[id]/page"
+
+// Component definition
+export function DocumentDetailClient({ envelope }: { envelope: EnvelopeDetail }) {
   const router = useRouter()
-  const [title, setTitle] = useState(envelope.title)
-  const [editingTitle, setEditingTitle] = useState(false)
   const [confirmState, setConfirmState] = useState<{
     open: boolean
     title: string
@@ -247,7 +248,7 @@ export function DocumentDetailClient({ envelope }: { envelope: any }) {
               </span>
             </h3>
             <div className="space-y-2.5">
-              {envelope.signers?.map((signer: any) => (
+              {envelope.signers?.map((signer) => (
                 <div key={signer.id} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-200/60">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="h-7 w-7 rounded-full bg-[#1A56DB]/10 text-[#1A56DB] text-xs font-bold flex items-center justify-center shrink-0">
@@ -333,7 +334,7 @@ export function DocumentDetailClient({ envelope }: { envelope: any }) {
           {envelope.auditEvents?.length === 0 ? (
             <div className="p-6 text-center text-slate-400">No events logged yet.</div>
           ) : (
-            envelope.auditEvents?.map((event: any) => (
+            envelope.auditEvents?.map((event) => (
               <div key={event.id} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50">
                 <div className="flex items-center gap-3">
                   <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700">

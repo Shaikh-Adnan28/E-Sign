@@ -14,9 +14,14 @@ import {
   Loader2,
   X,
   AlertTriangle,
+  Calendar,
+  AlignLeft,
 } from "lucide-react";
 import { SignatureModal } from "@/components/signing/signature-modal";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
 
@@ -374,27 +379,62 @@ export default function SignatureClient({
 
       {/* ── Text/Date Input Modal ──────────────────────────────────────────── */}
       {showTextInput && activeField && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-slate-900">
-                {activeField.type === "DATE" ? "Enter date" : "Enter text"}
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <h2 className="text-base font-bold text-[#0F172A] flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-blue-50 text-[#1A56DB]">
+                  {activeField.type === "DATE" ? <Calendar size={16} /> : <AlignLeft size={16} />}
+                </span>
+                {activeField.type === "DATE" ? "Enter Date" : "Enter Text"}
               </h2>
-              <button onClick={() => { setShowTextInput(false); setActiveField(null); }} className="text-slate-400 hover:text-slate-600">
-                <X size={16} />
+              <button
+                onClick={() => { setShowTextInput(false); setActiveField(null); }}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <X size={18} />
               </button>
             </div>
-            <input
-              type={activeField.type === "DATE" ? "date" : "text"}
-              value={textInput}
-              onChange={(e) => setTextInput(e.target.value)}
-              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 mb-4"
-              autoFocus
-              defaultValue={activeField.type === "DATE" ? new Date().toISOString().slice(0, 10) : ""}
-            />
-            <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => { setShowTextInput(false); setActiveField(null); }}>Cancel</Button>
-              <Button className="flex-1" onClick={handleTextConfirm} disabled={!textInput}>Save</Button>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-3">
+              <Label htmlFor="signing-modal-input" className="text-xs font-semibold text-[#0F172A]">
+                {activeField.type === "DATE" ? "Select Date" : "Field Value"}
+              </Label>
+              <Input
+                id="signing-modal-input"
+                type={activeField.type === "DATE" ? "date" : "text"}
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                placeholder={activeField.type === "DATE" ? "YYYY-MM-DD" : "Enter your text clearly..."}
+                className="h-11 text-sm font-medium text-[#0F172A] placeholder:text-slate-500 border-[#E2E8F0] hover:border-[#3F83F8] focus:border-[#1A56DB] focus:ring-2 focus:ring-[#1A56DB]/20"
+                autoFocus
+                defaultValue={activeField.type === "DATE" ? new Date().toISOString().slice(0, 10) : undefined}
+              />
+              <p className="text-[11px] text-slate-500 font-medium">
+                {activeField.type === "DATE"
+                  ? "This date will be stamped onto the document field."
+                  : "This text value will be placed into the document field."}
+              </p>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100">
+              <Button
+                variant="outline"
+                className="flex-1 border-[#E2E8F0] text-slate-700 hover:bg-white hover:border-slate-300 font-semibold"
+                onClick={() => { setShowTextInput(false); setActiveField(null); }}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-[#1A56DB] hover:bg-blue-700 text-white font-semibold shadow-xs"
+                onClick={handleTextConfirm}
+                disabled={!textInput.trim()}
+              >
+                Save Value
+              </Button>
             </div>
           </div>
         </div>
@@ -402,29 +442,47 @@ export default function SignatureClient({
 
       {/* ── Decline Modal ─────────────────────────────────────────────────── */}
       {showDeclineModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <AlertTriangle size={18} className="text-red-500" />
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100">
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-red-50/40">
+              <div className="w-9 h-9 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
+                <AlertTriangle size={18} className="text-red-600" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-slate-900">Decline to Sign</h2>
-                <p className="text-xs text-slate-400">This action cannot be undone.</p>
+                <h2 className="text-base font-bold text-[#0F172A]">Decline to Sign</h2>
+                <p className="text-xs text-slate-500">This action will decline the signing request.</p>
               </div>
             </div>
-            <p className="text-sm text-slate-600 mb-3">Please let the sender know why you are declining.</p>
-            <textarea
-              value={declineReason}
-              onChange={(e) => setDeclineReason(e.target.value)}
-              placeholder="Optional reason for declining..."
-              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm h-24 resize-none focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-400/20 mb-4"
-            />
-            <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => setShowDeclineModal(false)}>Cancel</Button>
-              <Button variant="destructive" className="flex-1 gap-1.5" onClick={handleDecline} disabled={declining}>
-                {declining ? <Loader2 size={13} className="animate-spin" /> : null}
-                Decline
+
+            <div className="p-6 space-y-3">
+              <Label htmlFor="decline-reason-input" className="text-xs font-semibold text-[#0F172A]">
+                Reason for declining (Optional)
+              </Label>
+              <Textarea
+                id="decline-reason-input"
+                value={declineReason}
+                onChange={(e) => setDeclineReason(e.target.value)}
+                placeholder="Let the sender know why you are declining to sign this document..."
+                className="h-28 text-sm font-medium text-[#0F172A] placeholder:text-slate-500 border-[#E2E8F0] hover:border-[#3F83F8] focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+              />
+            </div>
+
+            <div className="flex gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100">
+              <Button
+                variant="outline"
+                className="flex-1 border-[#E2E8F0] text-slate-700 hover:bg-white font-semibold"
+                onClick={() => setShowDeclineModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold shadow-xs gap-1.5"
+                onClick={handleDecline}
+                disabled={declining}
+              >
+                {declining ? <Loader2 size={14} className="animate-spin" /> : null}
+                Decline Signing
               </Button>
             </div>
           </div>

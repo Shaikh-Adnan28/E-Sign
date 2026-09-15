@@ -80,7 +80,6 @@ export async function POST(request: NextRequest) {
 
     // 6. DB Record Creation with Cleanup Protection
     let createdEnvelopeId: string | null = null
-    let createdDocumentId: string | null = null
     let storageKeyCreated: string | null = null
 
     try {
@@ -107,7 +106,6 @@ export async function POST(request: NextRequest) {
         })
         .returning()
 
-      createdDocumentId = docRecord.id
       const finalStorageKey = `documents/${docRecord.id}/original.pdf`
 
       // Step C: Upload File to Private Local Storage

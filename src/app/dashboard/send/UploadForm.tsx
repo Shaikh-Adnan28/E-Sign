@@ -231,7 +231,7 @@ export function UploadForm() {
                 onChange={(e) => setTitle(e.target.value)}
                 disabled={isUploading}
                 placeholder="Enter document title (e.g. Service Agreement 2026)"
-                className="h-10 text-xs sm:text-sm px-3.5 bg-slate-50/50 border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl transition-all font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal"
+                className="h-10 text-xs sm:text-sm px-3.5 bg-white border-[#E2E8F0] hover:border-[#3F83F8] focus:border-[#1A56DB] focus:ring-2 focus:ring-[#1A56DB]/20 rounded-xl font-medium text-[#0F172A] placeholder:text-slate-500"
               />
             </div>
           </div>

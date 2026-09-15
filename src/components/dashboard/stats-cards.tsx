@@ -1,4 +1,4 @@
-import { Clock, Send, CheckCircle2, TrendingUp, AlertCircle } from "lucide-react"
+import { Clock, Send, CheckCircle2, TrendingUp } from "lucide-react"
 
 export interface DashboardStatsData {
   pending: number
