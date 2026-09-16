@@ -90,6 +90,7 @@ export const envelopes = pgTable("envelopes", {
   statusIdx: index("envelopes_status_idx").on(table.status),
   nextReminderIdx: index("envelopes_next_reminder_idx").on(table.nextReminderAt),
   expiresAtIdx: index("envelopes_expires_at_idx").on(table.expiresAt),
+  createdAtIdx: index("envelopes_created_at_idx").on(table.createdAt),
 }));
 
 export type Envelope = typeof envelopes.$inferSelect;
@@ -102,6 +103,10 @@ export const documents = pgTable("documents", {
   filename: text("filename").notNull(),
   storageKey: text("storage_key").notNull(),
   pageCount: integer("page_count"),
+  isHtmlDocument: boolean("is_html_document").default(false).notNull(),
+  htmlSource: text("html_source"),
+  htmlCss: text("html_css"),
+  variablesConfig: jsonb("variables_config").$type<any[]>(),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   envelopeIdx: index("documents_envelope_idx").on(table.envelopeId),
@@ -326,6 +331,10 @@ export const templates = pgTable("templates", {
   filename: text("filename").notNull(),
   storageKey: text("storage_key").notNull(),
   pageCount: integer("page_count"),
+  isHtmlTemplate: boolean("is_html_template").default(false).notNull(),
+  htmlSource: text("html_source"),
+  htmlCss: text("html_css"),
+  variablesConfig: jsonb("variables_config").$type<any[]>(),
   usageCount: integer("usage_count").default(0).notNull(),
   status: text("status", { enum: templateStatusEnum }).default("ACTIVE").notNull(),
   createdAt: timestamp("created_at").defaultNow(),

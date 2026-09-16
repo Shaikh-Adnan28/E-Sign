@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Loader2, Plus, Trash2, Upload, FileText } from "lucide-react"
+import { Loader2, Plus, Trash2, Upload, FileText, Code2 } from "lucide-react"
 
 interface CreateTemplateModalProps {
   open: boolean
@@ -28,6 +28,7 @@ export function CreateTemplateModal({
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [roles, setRoles] = useState<string[]>(["Signer 1", "Signer 2"])
+  const [method, setMethod] = useState<"pdf" | "html">("pdf")
   const [file, setFile] = useState<File | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -51,6 +52,18 @@ export function CreateTemplateModal({
       setError("Template name is required.")
       return
     }
+
+    if (method === "html") {
+      const qs = new URLSearchParams()
+      qs.set("name", name.trim())
+      if (description.trim()) qs.set("description", description.trim())
+      qs.set("roles", JSON.stringify(roles.map((r) => r.trim()).filter(Boolean)))
+      
+      onOpenChange(false)
+      router.push(`/dashboard/templates/html/new?${qs.toString()}`)
+      return
+    }
+
     if (!file) {
       setError("Please select a PDF document.")
       return
@@ -95,11 +108,35 @@ export function CreateTemplateModal({
             Create Reusable Template
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-500">
-            Upload a PDF document and define reusable signer roles (e.g. Employee, Client).
+            Upload a PDF document or build with HTML, and define reusable signer roles.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          {/* Creation Method */}
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setMethod("pdf")}
+              className={`flex flex-col items-center justify-center p-3 border-2 rounded-xl transition-colors ${
+                method === "pdf" ? "border-[#1A56DB] bg-blue-50 text-[#1A56DB]" : "border-slate-200 hover:border-slate-300"
+              }`}
+            >
+              <Upload className="w-5 h-5 mb-1" />
+              <span className="text-xs font-bold">Upload PDF</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMethod("html")}
+              className={`flex flex-col items-center justify-center p-3 border-2 rounded-xl transition-colors ${
+                method === "html" ? "border-[#1A56DB] bg-blue-50 text-[#1A56DB]" : "border-slate-200 hover:border-slate-300"
+              }`}
+            >
+              <Code2 className="w-5 h-5 mb-1" />
+              <span className="text-xs font-bold">Build with HTML</span>
+            </button>
+          </div>
+
           {/* Template Name */}
           <div className="space-y-1.5">
             <Label htmlFor="tmpl-name" className="text-xs font-semibold text-slate-700">
@@ -130,38 +167,40 @@ export function CreateTemplateModal({
             />
           </div>
 
-          {/* PDF Upload */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">
-              Template PDF Document <span className="text-red-500">*</span>
-            </Label>
-            <div className="flex items-center justify-center w-full">
-              <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100/80 transition-colors">
-                <div className="flex flex-col items-center justify-center pt-5 pb-6 px-4 text-center">
-                  {file ? (
-                    <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
-                      <FileText className="h-5 w-5 text-[#1A56DB]" />
-                      <span className="truncate max-w-[240px]">{file.name}</span>
-                    </div>
-                  ) : (
-                    <>
-                      <Upload className="w-6 h-6 mb-2 text-slate-400" />
-                      <p className="text-xs text-slate-600 font-semibold">
-                        Click to upload or drag PDF
-                      </p>
-                      <p className="text-[10px] text-slate-400">PDF documents up to 25MB</p>
-                    </>
-                  )}
-                </div>
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  className="hidden"
-                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                />
-              </label>
+          {/* PDF Upload - only show if method is pdf */}
+          {method === "pdf" && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-700">
+                Template PDF Document <span className="text-red-500">*</span>
+              </Label>
+              <div className="flex items-center justify-center w-full">
+                <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100/80 transition-colors">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6 px-4 text-center">
+                    {file ? (
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+                        <FileText className="h-5 w-5 text-[#1A56DB]" />
+                        <span className="truncate max-w-[240px]">{file.name}</span>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="w-6 h-6 mb-2 text-slate-400" />
+                        <p className="text-xs text-slate-600 font-semibold">
+                          Click to upload or drag PDF
+                        </p>
+                        <p className="text-[10px] text-slate-400">PDF documents up to 25MB</p>
+                      </>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    className="hidden"
+                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Signer Roles */}
           <div className="space-y-2 pt-1">
@@ -230,7 +269,7 @@ export function CreateTemplateModal({
               className="h-9 text-xs font-semibold bg-[#1A56DB] hover:bg-blue-700 text-white"
             >
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create &amp; Prepare Fields
+              {method === "html" ? "Continue to HTML Builder" : "Create & Prepare Fields"}
             </Button>
           </div>
         </form>
