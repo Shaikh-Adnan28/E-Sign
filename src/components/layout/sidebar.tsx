@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn, getInitials } from "@/lib/utils"
 
+import { useRouter } from "next/navigation"
 import { useUsage } from "@/hooks/use-usage"
 
 interface NavItem {
@@ -43,7 +44,7 @@ interface NavItem {
   badge?: string
 }
 
-function UsageCardItem({ loading, error, data, label, noun }: { loading: boolean, error: any, data: any, label: string, noun: string }) {
+function UsageCardItem({ loading, error, data, label, noun }: { loading: boolean, error: unknown, data: { used: number | null; limit: number | null } | undefined, label: string, noun: string }) {
   if (loading) return <div className="h-4 w-full bg-slate-200 animate-pulse rounded" />
   if (error) return <div className="text-[10px] text-red-500">Failed to load</div>
   if (!data) return null
@@ -87,6 +88,7 @@ export interface SidebarProps {
 
 export function Sidebar({ className, user }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const { usage, loading: usageLoading, error: usageError } = useUsage()
 
   const userName = user?.name || "User"
@@ -212,7 +214,7 @@ export function Sidebar({ className, user }: SidebarProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => { window.location.href = '/dashboard/usage'; }}
+            onClick={() => { router.push('/dashboard/usage'); }}
             className="w-full h-7 text-xs font-semibold text-[#1A56DB] border-blue-200 hover:bg-blue-50/80 hover:text-blue-700 bg-white"
           >
             Upgrade Plan

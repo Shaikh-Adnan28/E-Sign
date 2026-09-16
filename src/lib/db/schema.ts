@@ -106,7 +106,7 @@ export const documents = pgTable("documents", {
   isHtmlDocument: boolean("is_html_document").default(false).notNull(),
   htmlSource: text("html_source"),
   htmlCss: text("html_css"),
-  variablesConfig: jsonb("variables_config").$type<any[]>(),
+  variablesConfig: jsonb("variables_config").$type<unknown[]>(),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   envelopeIdx: index("documents_envelope_idx").on(table.envelopeId),
@@ -334,7 +334,7 @@ export const templates = pgTable("templates", {
   isHtmlTemplate: boolean("is_html_template").default(false).notNull(),
   htmlSource: text("html_source"),
   htmlCss: text("html_css"),
-  variablesConfig: jsonb("variables_config").$type<any[]>(),
+  variablesConfig: jsonb("variables_config").$type<unknown[]>(),
   usageCount: integer("usage_count").default(0).notNull(),
   status: text("status", { enum: templateStatusEnum }).default("ACTIVE").notNull(),
   createdAt: timestamp("created_at").defaultNow(),

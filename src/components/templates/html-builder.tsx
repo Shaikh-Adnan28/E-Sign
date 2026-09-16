@@ -90,8 +90,8 @@ export function HtmlBuilder({
       if (!res.ok) throw new Error(data.error || "Failed to generate template")
       
       router.push(`/dashboard/templates/editor/${data.id}`)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred")
       setIsGenerating(false)
     }
   }

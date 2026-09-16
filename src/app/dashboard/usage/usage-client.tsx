@@ -4,7 +4,15 @@ import { useUsage } from "@/hooks/use-usage";
 import { Loader2, FileText, Copy, Users, Globe, Layers, HardDrive, Infinity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-function UsageStatCard({ title, icon: Icon, data, noun, notAvailableText }: any) {
+interface UsageStatCardProps {
+  title: string;
+  icon: React.ElementType;
+  data: { used: number | null; limit: number | null } | undefined;
+  noun: string;
+  notAvailableText?: string;
+}
+
+function UsageStatCard({ title, icon: Icon, data, noun, notAvailableText }: UsageStatCardProps) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-6 flex flex-col justify-between hover:shadow-md transition-shadow">
       <div className="flex items-center gap-3 mb-6">

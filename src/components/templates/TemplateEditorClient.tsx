@@ -80,7 +80,6 @@ export default function TemplateEditorClient({
   const [fields, setFields] = useState<TemplateLocalField[]>(initialFields);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [selectedTool, setSelectedTool] = useState<FieldType | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
   const [zoom, setZoom] = useState(1.0);
   const [activeTab, setActiveTab] = useState<"fields" | "roles">("fields");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
@@ -88,34 +87,6 @@ export default function TemplateEditorClient({
   const [newRoleName, setNewRoleName] = useState("");
 
   const pageSize = { width: 620 * zoom, height: 800 * zoom };
-
-  function handleAddField(type: FieldType, clientX: number, clientY: number) {
-    if (!canvasRef.current) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const ft = FIELD_TYPES.find((f) => f.type === type)!;
-
-    const rawX = (clientX - rect.left) / pageSize.width;
-    const rawY = (clientY - rect.top) / pageSize.height;
-
-    const x = Math.max(0, Math.min(1 - ft.defaultW, rawX));
-    const y = Math.max(0, Math.min(1 - ft.defaultH, rawY));
-
-    const newField: TemplateLocalField = {
-      id: `tf-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      roleId: roles[0]?.id ?? null,
-      type,
-      pageNumber: currentPage,
-      x,
-      y,
-      width: ft.defaultW,
-      height: ft.defaultH,
-      required: true,
-    };
-
-    setFields((prev) => [...prev, newField]);
-    setSelectedFieldId(newField.id);
-    setSelectedTool(null);
-  }
 
   function handleUpdateField(id: string, updates: Partial<TemplateLocalField>) {
     setFields((prev) => prev.map((f) => (f.id === id ? { ...f, ...updates } : f)));

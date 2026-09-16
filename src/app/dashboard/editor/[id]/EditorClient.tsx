@@ -433,10 +433,9 @@ export default function EditorClient({
   signers: initialSigners,
 }: EditorClientProps) {
   const router = useRouter();
-  const canvasRef = useRef<HTMLDivElement>(null);
 
   const {
-    init, reset, currentPage, setPage, zoom, setZoom,
+    init, reset, zoom, setZoom,
     fields, addField, updateField, deleteField, selectField,
     selectedFieldId, saveStatus, flushSave,
   } = useEditorStore();
