@@ -319,89 +319,96 @@ export default function TemplateEditorClient({
         </aside>
 
         {/* Center PDF Canvas */}
-        <main className="flex-1 flex flex-col items-center justify-start p-6 overflow-auto relative">
-          <div
-            ref={canvasRef}
-            onClick={(e) => {
-              if (selectedTool) {
-                handleAddField(selectedTool, e.clientX, e.clientY);
-              }
-            }}
-            style={{ width: pageSize.width, height: pageSize.height }}
-            className={`bg-white rounded-xl shadow-lg border border-slate-200/90 relative transition-all ${
-              selectedTool ? "cursor-crosshair ring-2 ring-blue-500/30" : "cursor-default"
-            }`}
-          >
-            {/* Mock PDF Document Page Background */}
-            <div className="p-8 space-y-4 opacity-25 select-none pointer-events-none">
-              <div className="h-6 bg-slate-300 rounded w-2/3" />
-              <div className="h-4 bg-slate-200 rounded w-full" />
-              <div className="h-4 bg-slate-200 rounded w-5/6" />
-              <div className="h-4 bg-slate-200 rounded w-4/6" />
-              <div className="h-32 bg-slate-100 rounded border border-dashed border-slate-300 my-8" />
-              <div className="h-4 bg-slate-200 rounded w-full" />
-              <div className="h-4 bg-slate-200 rounded w-3/4" />
-            </div>
-
-            {/* Field Overlays */}
-            {fields
-              .filter((f) => f.pageNumber === currentPage)
-              .map((field) => {
-                const roleIdx = roles.findIndex((r) => r.id === field.roleId);
-                const colorClass = roleIdx >= 0 ? ROLE_COLORS[roleIdx % ROLE_COLORS.length] : "border-slate-400 bg-slate-100 text-slate-700";
-                const isSelected = selectedFieldId === field.id;
-                const roleName = roles.find((r) => r.id === field.roleId)?.roleName ?? "Unassigned";
-
-                return (
-                  <div
-                    key={field.id}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedFieldId(field.id);
-                    }}
-                    style={{
-                      left: `${field.x * 100}%`,
-                      top: `${field.y * 100}%`,
-                      width: `${field.width * 100}%`,
-                      height: `${field.height * 100}%`,
-                    }}
-                    className={`absolute rounded-lg border-2 flex items-center justify-between px-2 text-xs font-bold transition-all shadow-2xs ${colorClass} ${
-                      isSelected ? "ring-2 ring-blue-600 ring-offset-1 z-10" : ""
-                    }`}
-                  >
-                    <span className="truncate">{field.type}</span>
-                    <span className="text-[10px] opacity-80 truncate ml-1">{roleName}</span>
+        <main className="flex-1 overflow-auto bg-slate-200/50 flex justify-center items-start p-8">
+          <div style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }} className="flex flex-col gap-8 pb-24">
+            {Array.from({ length: pageCount }).map((_, i) => {
+              const pageNum = i + 1;
+              return (
+                <div
+                  key={pageNum}
+                  onClick={(e) => {
+                    if (selectedTool) {
+                      if (!canvasRef.current) return;
+                      // Note: we can use currentTarget for the specific page
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const ft = FIELD_TYPES.find((f) => f.type === selectedTool)!;
+                      const rawX = (e.clientX - rect.left) / (pageSize.width * zoom);
+                      const rawY = (e.clientY - rect.top) / (pageSize.height * zoom);
+                      
+                      const x = Math.max(0, Math.min(1 - ft.defaultW, rawX));
+                      const y = Math.max(0, Math.min(1 - ft.defaultH, rawY));
+                  
+                      const newField: TemplateLocalField = {
+                        id: `tf-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                        roleId: roles[0]?.id ?? null,
+                        type: selectedTool,
+                        pageNumber: pageNum,
+                        x,
+                        y,
+                        width: ft.defaultW,
+                        height: ft.defaultH,
+                        required: true,
+                      };
+                  
+                      setFields((prev) => [...prev, newField]);
+                      setSelectedFieldId(newField.id);
+                      setSelectedTool(null);
+                    } else {
+                      setSelectedFieldId(null);
+                    }
+                  }}
+                  style={{ width: pageSize.width, height: pageSize.height }}
+                  className={`bg-white rounded-sm shadow-xl relative shrink-0 ${
+                    selectedTool ? "cursor-crosshair ring-2 ring-blue-500/30" : "cursor-default"
+                  }`}
+                >
+                  {/* Mock PDF Document Page Background */}
+                  <div className="p-8 space-y-4 opacity-25 select-none pointer-events-none w-full h-full">
+                    <div className="text-center mb-10 text-xl font-bold text-slate-400">Page {pageNum}</div>
+                    <div className="h-6 bg-slate-300 rounded w-2/3" />
+                    <div className="h-4 bg-slate-200 rounded w-full" />
+                    <div className="h-4 bg-slate-200 rounded w-5/6" />
+                    <div className="h-4 bg-slate-200 rounded w-4/6" />
+                    <div className="h-32 bg-slate-100 rounded border border-dashed border-slate-300 my-8" />
+                    <div className="h-4 bg-slate-200 rounded w-full" />
+                    <div className="h-4 bg-slate-200 rounded w-3/4" />
                   </div>
-                );
-              })}
-          </div>
 
-          {/* Page Navigation */}
-          {pageCount > 1 && (
-            <div className="mt-4 flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-2xs text-xs font-semibold">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage <= 1}
-                className="h-6 w-6 p-0"
-              >
-                &larr;
-              </Button>
-              <span>
-                Page {currentPage} of {pageCount}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))}
-                disabled={currentPage >= pageCount}
-                className="h-6 w-6 p-0"
-              >
-                &rarr;
-              </Button>
-            </div>
-          )}
+                  {/* Field Overlays */}
+                  {fields
+                    .filter((f) => f.pageNumber === pageNum)
+                    .map((field) => {
+                      const roleIdx = roles.findIndex((r) => r.id === field.roleId);
+                      const colorClass = roleIdx >= 0 ? ROLE_COLORS[roleIdx % ROLE_COLORS.length] : "border-slate-400 bg-slate-100 text-slate-700";
+                      const isSelected = selectedFieldId === field.id;
+                      const roleName = roles.find((r) => r.id === field.roleId)?.roleName ?? "Unassigned";
+
+                      return (
+                        <div
+                          key={field.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedFieldId(field.id);
+                          }}
+                          style={{
+                            left: `${field.x * 100}%`,
+                            top: `${field.y * 100}%`,
+                            width: `${field.width * 100}%`,
+                            height: `${field.height * 100}%`,
+                          }}
+                          className={`absolute rounded-lg border-2 flex items-center justify-between px-2 text-xs font-bold transition-all shadow-2xs ${colorClass} ${
+                            isSelected ? "ring-2 ring-blue-600 ring-offset-1 z-10" : ""
+                          }`}
+                        >
+                          <span className="truncate">{field.type}</span>
+                          <span className="text-[10px] opacity-80 truncate ml-1">{roleName}</span>
+                        </div>
+                      );
+                    })}
+                </div>
+              );
+            })}
+          </div>
         </main>
 
         {/* Right Properties Panel */}

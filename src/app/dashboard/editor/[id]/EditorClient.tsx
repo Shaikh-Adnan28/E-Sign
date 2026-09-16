@@ -476,25 +476,8 @@ export default function EditorClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFieldId]);
 
-  function onCanvasClick(e: React.MouseEvent<HTMLDivElement>) {
-    if (!selectedTool || !canvasRef.current) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / pageSize.width;
-    const y = (e.clientY - rect.top) / pageSize.height;
-    const ft = FIELD_TYPES.find((f) => f.type === selectedTool)!;
-    addField({
-      documentId,
-      type: selectedTool,
-      pageNumber: currentPage,
-      x: Math.max(0, Math.min(1 - ft.defaultW, x - ft.defaultW / 2)),
-      y: Math.max(0, Math.min(1 - ft.defaultH, y - ft.defaultH / 2)),
-      width: ft.defaultW,
-      height: ft.defaultH,
-      required: true,
-      signerId: signers[0]?.id ?? null,
-    });
-    setSelectedTool(null);
-  }
+  // onCanvasClick logic has been moved inline to support continuous vertical scrolling
+  // visibleFields has been moved inline
 
   async function openSendModal() {
     await flushSave();
@@ -532,10 +515,6 @@ export default function EditorClient({
     }
   }
 
-  const visibleFields = fields.filter(
-    (f) => f.pageNumber === currentPage && !f._deleted
-  );
-
   const selectedField = fields.find((f) => f.id === selectedFieldId) ?? null;
 
   const saveLabel: Record<typeof saveStatus, string> = {
@@ -566,24 +545,18 @@ export default function EditorClient({
 
         {/* Page nav */}
         <div className="flex items-center gap-1 ml-auto">
-          <button className="p-1 hover:bg-slate-100 rounded" onClick={() => setPage(currentPage - 1)} disabled={currentPage <= 1}>
-            <ChevronLeft size={14} />
-          </button>
-          <span className="text-xs text-slate-500 min-w-[70px] text-center">
-            Page {currentPage} / {pageCount}
+          <span className="text-xs text-slate-500 min-w-[70px] text-center font-medium">
+            {pageCount} Page{pageCount !== 1 ? 's' : ''}
           </span>
-          <button className="p-1 hover:bg-slate-100 rounded" onClick={() => setPage(currentPage + 1)} disabled={currentPage >= pageCount}>
-            <ChevronRight size={14} />
-          </button>
         </div>
 
         {/* Zoom */}
         <div className="flex items-center gap-1">
-          <button className="p-1 hover:bg-slate-100 rounded" onClick={() => setZoom(zoom - 0.1)}>
+          <button className="p-1 hover:bg-slate-100 rounded" onClick={() => setZoom(Math.max(0.2, zoom - 0.1))}>
             <ZoomOut size={14} />
           </button>
           <span className="text-xs text-slate-500 w-10 text-center">{Math.round(zoom * 100)}%</span>
-          <button className="p-1 hover:bg-slate-100 rounded" onClick={() => setZoom(zoom + 0.1)}>
+          <button className="p-1 hover:bg-slate-100 rounded" onClick={() => setZoom(Math.min(3, zoom + 0.1))}>
             <ZoomIn size={14} />
           </button>
         </div>
@@ -663,61 +636,90 @@ export default function EditorClient({
 
         {/* Center — PDF Canvas */}
         <main
-          className="flex-1 overflow-auto bg-slate-100 flex justify-center items-start p-6"
+          className="flex-1 overflow-auto bg-slate-200/50 flex justify-center items-start p-8"
           onClick={() => { if (!selectedTool) selectField(null); }}
         >
-          <div style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}>
-            <div className="relative shadow-2xl rounded-sm overflow-hidden bg-white" style={{ width: pageSize.width, height: pageSize.height }}>
-              {/* PDF Page */}
+          <div style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }} className="pb-24">
               <Document
                 file={`/api/documents/${documentId}/file`}
                 loading={
-                  <div className="flex items-center justify-center w-full h-full bg-slate-100">
+                  <div className="flex items-center justify-center w-[600px] h-[800px] bg-slate-100 rounded-sm">
                     <Loader2 className="animate-spin text-slate-400" size={32} />
                   </div>
                 }
                 error={
-                  <div className="flex items-center justify-center w-full h-full bg-slate-100">
+                  <div className="flex items-center justify-center w-[600px] h-[800px] bg-slate-100 rounded-sm">
                     <p className="text-sm text-slate-400">Could not load PDF</p>
                   </div>
                 }
               >
-                <Page
-                  pageNumber={currentPage}
-                  width={pageSize.width}
-                  onRenderSuccess={(page) => {
-                    setPageSize({ width: page.width, height: page.height });
-                  }}
-                  renderTextLayer={false}
-                  renderAnnotationLayer={false}
-                />
-              </Document>
+                <div className="flex flex-col gap-8">
+                  {Array.from({ length: pageCount }).map((_, i) => {
+                    const pageNum = i + 1;
+                    return (
+                      <div 
+                        key={pageNum} 
+                        className="relative shadow-xl rounded-sm overflow-hidden bg-white shrink-0" 
+                        style={{ width: pageSize.width, height: pageSize.height }}
+                      >
+                        {/* PDF Page */}
+                        <Page
+                          pageNumber={pageNum}
+                          width={pageSize.width}
+                          onRenderSuccess={(page) => {
+                            if (pageNum === 1) {
+                              setPageSize({ width: page.width, height: page.height });
+                            }
+                          }}
+                          renderTextLayer={false}
+                          renderAnnotationLayer={false}
+                        />
 
-              {/* Field overlay canvas */}
-              <div
-                ref={canvasRef}
-                className={`absolute inset-0 ${selectedTool ? "cursor-crosshair" : "cursor-default"}`}
-                style={{ width: pageSize.width, height: pageSize.height }}
-                onClick={onCanvasClick}
-              >
-                {visibleFields.map((field) => {
-                  const signerIndex = signers.findIndex((s) => s.id === field.signerId);
-                  return (
-                    <FieldOverlay
-                      key={field.id}
-                      field={field}
-                      pagePixelW={pageSize.width}
-                      pagePixelH={pageSize.height}
-                      isSelected={field.id === selectedFieldId}
-                      signerIndex={signerIndex >= 0 ? signerIndex : 0}
-                      onSelect={() => selectField(field.id)}
-                      onUpdate={(updates) => updateField(field.id, updates)}
-                      onDelete={() => deleteField(field.id)}
-                    />
-                  );
-                })}
-              </div>
-            </div>
+                        {/* Field overlay canvas */}
+                        <div
+                          className={`absolute inset-0 ${selectedTool ? "cursor-crosshair" : "cursor-default"}`}
+                          onClick={(e) => {
+                            if (!selectedTool) return;
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const x = (e.clientX - rect.left) / (pageSize.width * zoom);
+                            const y = (e.clientY - rect.top) / (pageSize.height * zoom);
+                            const ft = FIELD_TYPES.find((f) => f.type === selectedTool)!;
+                            addField({
+                              documentId,
+                              type: selectedTool,
+                              pageNumber: pageNum,
+                              x: Math.max(0, Math.min(1 - ft.defaultW, x - ft.defaultW / 2)),
+                              y: Math.max(0, Math.min(1 - ft.defaultH, y - ft.defaultH / 2)),
+                              width: ft.defaultW,
+                              height: ft.defaultH,
+                              required: true,
+                              signerId: signers[0]?.id ?? null,
+                            });
+                            setSelectedTool(null);
+                          }}
+                        >
+                          {fields.filter((f) => f.pageNumber === pageNum && !f._deleted).map((field) => {
+                            const signerIndex = signers.findIndex((s) => s.id === field.signerId);
+                            return (
+                              <FieldOverlay
+                                key={field.id}
+                                field={field}
+                                pagePixelW={pageSize.width}
+                                pagePixelH={pageSize.height}
+                                isSelected={field.id === selectedFieldId}
+                                signerIndex={signerIndex >= 0 ? signerIndex : 0}
+                                onSelect={() => selectField(field.id)}
+                                onUpdate={(updates) => updateField(field.id, updates)}
+                                onDelete={() => deleteField(field.id)}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Document>
           </div>
         </main>
 
