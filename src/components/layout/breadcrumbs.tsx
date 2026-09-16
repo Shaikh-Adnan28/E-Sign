@@ -36,11 +36,16 @@ export function Breadcrumbs() {
     // Routing fixes for intermediate segments that don't have pages
     if (segment === "editor") {
       title = "Editor"
-      // Point "editor" breadcrumb to the relevant list page
+      // Point "editor" breadcrumb to the document's detail page if it has an ID
       if (segments[index - 1] === "templates") {
         href = "/dashboard/templates"
       } else {
-        href = "/dashboard/documents"
+        const docId = segments[index + 1]
+        if (docId) {
+          href = `/dashboard/documents/${docId}`
+        } else {
+          href = "/dashboard/documents"
+        }
       }
     }
     
