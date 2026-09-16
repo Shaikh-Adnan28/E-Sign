@@ -56,3 +56,21 @@ export function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   return emailRegex.test(email)
 }
+
+export function formatDurationMs(ms: number | null): string {
+  if (ms === null || isNaN(ms) || ms <= 0) return "—"
+  if (ms < 60 * 1000) return "< 1m"
+
+  const totalMinutes = Math.round(ms / (1000 * 60))
+  if (totalMinutes < 60) return `${totalMinutes}m`
+
+  const totalHours = Math.floor(totalMinutes / 60)
+  const remainingMinutes = totalMinutes % 60
+  if (totalHours < 24) {
+    return remainingMinutes > 0 ? `${totalHours}h ${remainingMinutes}m` : `${totalHours}h`
+  }
+
+  const days = Math.floor(totalHours / 24)
+  const remainingHours = totalHours % 24
+  return remainingHours > 0 ? `${days}d ${remainingHours}h` : `${days}d`
+}

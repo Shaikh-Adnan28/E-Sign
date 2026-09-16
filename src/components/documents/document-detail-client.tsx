@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   Settings,
   Loader2,
+  BarChart2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,7 +27,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { StatusBadge, StatusType } from "@/components/documents/status-badge"
 import { ConfirmDialog } from "@/components/shared/confirm-dialog"
-import { formatDate, formatRelativeDate, getInitials, cn } from "@/lib/utils"
+import { formatDate, formatRelativeDate, getInitials, cn, formatDurationMs } from "@/lib/utils"
 import type { EnvelopeDetail } from "@/app/dashboard/documents/[id]/page"
 
 const TIMELINE_STEPS = [
@@ -471,6 +472,103 @@ export function DocumentDetailClient({ envelope }: { envelope: EnvelopeDetail })
             )}
           </div>
         </div>
+      </div>
+
+      {/* Individual Document Analytics & Signer Progress */}
+      <div className="bg-white rounded-xl border border-slate-200/80 shadow-2xs p-5 space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2">
+            <BarChart2 className="h-4 w-4 text-[#1A56DB]" />
+            <h2 className="text-xs font-bold text-slate-900">Document Analytics & Signing Performance</h2>
+          </div>
+          <span className="text-[11px] font-semibold text-slate-500">Live Telemetry</span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+            <span className="text-slate-500 text-[11px] block">Creation Date</span>
+            <span className="font-bold text-slate-900">
+              {envelope.createdAt ? formatDate(envelope.createdAt) : "—"}
+            </span>
+          </div>
+
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+            <span className="text-slate-500 text-[11px] block">Status</span>
+            <span className="font-bold text-slate-900">{envelope.status}</span>
+          </div>
+
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+            <span className="text-slate-500 text-[11px] block">Signer Progress</span>
+            <span className="font-bold text-slate-900">
+              {envelope.signers?.filter((s) => s.status === "SIGNED").length ?? 0} / {envelope.signers?.length ?? 0} Signed
+            </span>
+          </div>
+
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+            <span className="text-slate-500 text-[11px] block">Duration to Complete</span>
+            <span className="font-bold text-slate-900">
+              {envelope.status === "COMPLETED" && envelope.createdAt && envelope.updatedAt
+                ? formatDurationMs(new Date(envelope.updatedAt).getTime() - new Date(envelope.createdAt).getTime())
+                : "In Progress"}
+            </span>
+          </div>
+        </div>
+
+        {/* Sequential/Parallel Signer Turn Indicator */}
+        {envelope.signers && envelope.signers.length > 0 && (
+          <div className="pt-2 border-t border-slate-100">
+            <span className="text-[11px] font-bold text-slate-700 block mb-2">Signer Queue & Status</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {envelope.signers.map((s, idx) => {
+                const isCurrentTurn =
+                  envelope.status === "SENT" &&
+                  s.status !== "SIGNED" &&
+                  envelope.signers
+                    ?.filter((other) => (other.order ?? 0) < (s.order ?? 0))
+                    .every((other) => other.status === "SIGNED");
+
+                return (
+                  <div
+                    key={s.id}
+                    className={cn(
+                      "p-2.5 rounded-lg border text-xs flex items-center justify-between",
+                      isCurrentTurn
+                        ? "bg-blue-50/80 border-blue-300 text-blue-900 font-semibold"
+                        : "bg-slate-50 border-slate-200 text-slate-700"
+                    )}
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-600">
+                        #{s.order ?? idx + 1}
+                      </span>
+                      <span className="truncate">{s.name || s.email}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {isCurrentTurn && (
+                        <span className="text-[9px] bg-blue-600 text-white font-bold px-1.5 py-0.5 rounded-full animate-pulse">
+                          Current Turn
+                        </span>
+                      )}
+                      <span
+                        className={cn(
+                          "text-[10px] font-bold px-2 py-0.5 rounded-full",
+                          s.status === "SIGNED"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : s.status === "DECLINED"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-slate-200 text-slate-700"
+                        )}
+                      >
+                        {s.status}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Audit Log Trail */}
