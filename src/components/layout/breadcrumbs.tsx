@@ -15,8 +15,9 @@ export function Breadcrumbs() {
 
   // Map segments to readable titles
   const breadcrumbItems = segments.map((segment, index) => {
-    const href = `/${segments.slice(0, index + 1).join("/")}`
+    let href = `/${segments.slice(0, index + 1).join("/")}`
     const isLast = index === segments.length - 1
+    let isClickable = !isLast
     
     // Format segment name
     let title = segment
@@ -31,12 +32,35 @@ export function Breadcrumbs() {
     if (segment === "activity") title = "Activity"
     if (segment === "settings") title = "Settings"
     if (segment === "send") title = "Send Document"
-    if (segment === "editor") title = "Editor"
+    
+    // Routing fixes for intermediate segments that don't have pages
+    if (segment === "editor") {
+      title = "Editor"
+      // Point "editor" breadcrumb to the relevant list page
+      if (segments[index - 1] === "templates") {
+        href = "/dashboard/templates"
+      } else {
+        href = "/dashboard/documents"
+      }
+    }
+    
+    if (segment === "html") {
+      title = "HTML Builder"
+      // /dashboard/templates/html has no page, point to templates
+      href = "/dashboard/templates"
+    }
+
+    // Unclickable intermediate IDs or segments (e.g., /dashboard/public-forms/[id]/submissions)
+    if (segment.length > 20 && !isLast) {
+      // It's likely a UUID or CUID in the middle of a path, and usually those don't have standalone dashboard pages
+      isClickable = false
+    }
 
     return {
       title,
-      href: isLast ? undefined : href, // Last item is not clickable
+      href,
       isLast,
+      isClickable,
     }
   })
 
@@ -62,7 +86,7 @@ export function Breadcrumbs() {
       {breadcrumbItems.map((item, index) => (
         <div key={index} className="flex items-center gap-2">
           <ChevronRight className="h-4 w-4 text-gray-300" />
-          {item.isLast ? (
+          {!item.isClickable ? (
             <span className="text-sm font-medium text-gray-900 truncate max-w-[200px]">
               {item.title}
             </span>
