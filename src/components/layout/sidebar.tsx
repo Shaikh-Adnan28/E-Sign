@@ -34,11 +34,27 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn, getInitials } from "@/lib/utils"
 
+import { useUsage } from "@/hooks/use-usage"
+
 interface NavItem {
   label: string
   icon: React.ComponentType<{ className?: string }>
   href: string
   badge?: string
+}
+
+function UsageCardItem({ loading, error, data, label, noun }: { loading: boolean, error: any, data: any, label: string, noun: string }) {
+  if (loading) return <div className="h-4 w-full bg-slate-200 animate-pulse rounded" />
+  if (error) return <div className="text-[10px] text-red-500">Failed to load</div>
+  if (!data) return null
+  return (
+    <div className="flex justify-between items-center">
+      <span className="text-[11px] font-medium text-slate-600">{label}</span>
+      <span className="text-[11px] font-semibold text-slate-900">
+        {data.used} <span className="text-slate-400 font-normal">{noun}</span>
+      </span>
+    </div>
+  )
 }
 
 const mainNavItems: NavItem[] = [
@@ -71,6 +87,7 @@ export interface SidebarProps {
 
 export function Sidebar({ className, user }: SidebarProps) {
   const pathname = usePathname()
+  const { usage, loading: usageLoading, error: usageError } = useUsage()
 
   const userName = user?.name || "User"
   const userEmail = user?.email || "user@esign.com"
@@ -179,19 +196,23 @@ export function Sidebar({ className, user }: SidebarProps) {
 
         {/* Usage Card */}
         <div className="mx-1 p-3 rounded-xl bg-slate-50 border border-slate-200/70 space-y-2.5">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5 text-[#1A56DB]" /> Usage
             </span>
-            <span className="text-[11px] font-medium text-slate-500">3 / 10 docs</span>
+            <span className="text-[11px] font-bold text-[#1A56DB] bg-blue-100 px-1.5 py-0.5 rounded-md">
+              Free
+            </span>
           </div>
-          {/* Progress bar */}
-          <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
-            <div className="h-full bg-[#1A56DB] rounded-full w-[30%]" />
+          
+          <div className="space-y-1">
+            <UsageCardItem loading={usageLoading} error={usageError} data={usage?.documents} label="Documents" noun="documents" />
           </div>
+
           <Button
             variant="outline"
             size="sm"
+            onClick={() => { window.location.href = '/dashboard/usage'; }}
             className="w-full h-7 text-xs font-semibold text-[#1A56DB] border-blue-200 hover:bg-blue-50/80 hover:text-blue-700 bg-white"
           >
             Upgrade Plan
